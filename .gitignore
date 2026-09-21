@@ -1,0 +1,82 @@
+# Spring Boot 설정 파일: 개발용 키와 비밀번호 포함
+**/src/main/resources/application.properties
+**/src/main/resources/application-*.properties
+**/src/test/resources/application.properties
+**/src/test/resources/application-*.properties
+!**/src/main/resources/application-example.properties
+!**/src/test/resources/application-example.properties
+
+# 환경 변수 및 인증 파일
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+service-account*.json
+
+# Gradle 및 Java 빌드 결과물
+.gradle/
+**/build/
+**/out/
+**/target/
+*.class
+*.jar
+*.war
+!gradle/wrapper/gradle-wrapper.jar
+**/generated/
+
+# 개발 도구 설정
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+.metadata/
+
+# 로그 및 임시 파일
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*.pid
+
+# 로컬 데이터베이스
+*.h2.db
+*.mv.db
+*.trace.db
+*.sqlite
+*.sqlite3
+*.db
+
+# 운영체제 파일
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 테스트 결과
+**/test-results/
+**/reports/
+coverage/
+*.exec
+
+# 음성인식 기능 개발 시 생길 수 있는 로컬 파일
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+models/
+*.pt
+*.onnx
+*.safetensors
