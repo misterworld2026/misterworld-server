@@ -1,15 +1,15 @@
 package com.misterworld.server.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
 @Table(name = "회원")
 @Getter
 @Setter
-@NoArgsConstructor
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Member {
 
     public enum Role {
@@ -37,10 +37,28 @@ public class Member {
     @Column(name = "연락처")
     private String phoneNumber;
 
-    @Column(name = "여행신청인원수")
+    @Column(name = "여행횟수")
     private Integer TravelCount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "회원구분")
     private Role role;
+
+    public static Member create(
+            String email,
+            String password,
+            String name,
+            String address,
+            String phoneNumber,
+            Role role
+    ) {
+        return Member.builder()
+                .email(email)
+                .password(password)
+                .name(name)
+                .address(address)
+                .phoneNumber(phoneNumber)
+                .role(role)
+                .build();
+    }
 }
