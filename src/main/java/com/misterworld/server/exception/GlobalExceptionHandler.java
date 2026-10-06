@@ -28,6 +28,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
+    @ExceptionHandler({InvalidTokenException.class, AuthenticationFailedException.class})
+    public ResponseEntity<ResultDto> handleAuthentication(RuntimeException e) {
+        return error(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ResultDto> handleConflict(ConflictException e) {
         return error(HttpStatus.CONFLICT, e.getMessage());

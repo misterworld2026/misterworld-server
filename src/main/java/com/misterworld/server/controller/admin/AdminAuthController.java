@@ -1,6 +1,8 @@
 package com.misterworld.server.controller.admin;
 
+import com.misterworld.server.dto.request.LoginRequest;
 import com.misterworld.server.dto.request.SignUpRequest;
+import com.misterworld.server.dto.response.LoginResponse;
 import com.misterworld.server.dto.response.SignUpResponse;
 import com.misterworld.server.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,15 @@ public class AdminAuthController {
     public ResponseEntity<SignUpResponse> signup(@RequestBody @Valid SignUpRequest request) {
 
         SignUpResponse response = authService.createStaffAccount(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "직원 전용 로그인", description = "STAFF 전용 계정에 로그인합니다.")
+    public ResponseEntity<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
+
+        LoginResponse response = authService.staffLogin(request);
 
         return ResponseEntity.ok(response);
     }

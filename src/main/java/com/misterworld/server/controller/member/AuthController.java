@@ -1,6 +1,8 @@
 package com.misterworld.server.controller.member;
 
+import com.misterworld.server.dto.request.LoginRequest;
 import com.misterworld.server.dto.request.SignUpRequest;
+import com.misterworld.server.dto.response.LoginResponse;
 import com.misterworld.server.dto.response.SignUpResponse;
 import com.misterworld.server.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,15 @@ public class AuthController {
     public ResponseEntity<SignUpResponse> signup(@RequestBody @Valid SignUpRequest request) {
 
         SignUpResponse response = authService.signup(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "일반 화원 전용 로그인", description = "일반 회원 계정에 로그인합니다.")
+    public ResponseEntity<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
+
+        LoginResponse response = authService.login(request);
 
         return ResponseEntity.ok(response);
     }
