@@ -17,7 +17,6 @@ public class TravelApplication {
     public enum Status {
         PENDING, // 신청 대기
         CONFIRMED, // 신청 확정
-        REJECTED, // 신청 거절
         CANCELLED // 신청 취소
     }
 

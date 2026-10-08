@@ -17,6 +17,7 @@ public class TravelSchedule {
     public enum Status {
         RECRUITING, // 모집중
         CLOSED, // 모집마강
+        DEPARTURE_CONFIRMED, // 출발 확정
         IN_PROGRESS, // 여행 진행중
         COMPLETED, // 여행 완료
         CANCELLED // 일정 취소
