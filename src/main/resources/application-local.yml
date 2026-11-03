@@ -1,0 +1,8 @@
+# Isolated ephemeral database. Never point this profile at an existing database.
+spring:
+  datasource:
+    url: jdbc:h2:mem:misterworld;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=FALSE
+    username: sa
+    password: ''
+app:
+  jwt-secret: local-development-only-key-at-least-32-bytes-long

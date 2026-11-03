@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/misterworld?characterEncoding=UTF-8}
+    username: ${DB_USERNAME:misterworld}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+  flyway:
+    baseline-on-migrate: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      accept-float-as-int: false
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+app:
+  jwt-secret: ${JWT_SECRET:}

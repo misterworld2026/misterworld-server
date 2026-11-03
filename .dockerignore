@@ -1,0 +1,8 @@
+# The Dockerfile only needs the packaged application.
+# Keep .env, source documents, Git metadata, and local data out of the build context.
+**
+!Dockerfile
+!build/
+!build/libs/
+!build/libs/*-SNAPSHOT.jar
+build/libs/*-plain.jar

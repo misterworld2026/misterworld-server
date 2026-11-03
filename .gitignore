@@ -19,6 +19,14 @@
 credentials.json
 service-account*.json
 
+# Local source documents, extracted pages, tools, and database backups
+docs/source-review/
+.tools/
+backups/
+dumps/
+*.dump
+*.sql.gz
+
 # Gradle 및 Java 빌드 결과물
 .gradle/
 **/build/

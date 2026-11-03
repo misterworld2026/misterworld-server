@@ -1,0 +1,15 @@
+root = true
+
+[*.java]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+ij_java_keep_simple_methods_in_one_line = false
+ij_java_keep_simple_classes_in_one_line = false
+ij_java_keep_control_statement_in_one_line = false
+ij_java_record_components_wrap = on_every_item
+ij_java_record_new_line_after_left_paren = true
+ij_java_record_right_paren_on_new_line = true
+ij_java_call_parameters_wrap = normal
+ij_java_method_call_chain_wrap = normal
+ij_java_wrap_long_lines = true

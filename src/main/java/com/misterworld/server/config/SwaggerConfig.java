@@ -19,21 +19,21 @@ public class SwaggerConfig {
         String jwtSchemeName = "JWT";
 
         return new OpenAPI()
-                .servers(List.of(new Server().url("http://localhost:8080")))
-                .components(new Components()
-                        .addSecuritySchemes(jwtSchemeName, new SecurityScheme()
-                                .name(jwtSchemeName)
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")))
-                .addSecurityItem(new SecurityRequirement().addList(jwtSchemeName))
-                .info(apiInfo());
+            .servers(List.of(new Server().url("/")))
+            .components(new Components()
+                .addSecuritySchemes(jwtSchemeName, new SecurityScheme()
+                    .name(jwtSchemeName)
+                    .type(SecurityScheme.Type.HTTP)
+                    .scheme("bearer")
+                    .bearerFormat("JWT")))
+            .addSecurityItem(new SecurityRequirement().addList(jwtSchemeName))
+            .info(apiInfo());
     }
 
     private Info apiInfo() {
         return new Info()
-                .title("미스터 월드 테마 여행 API")
-                .description("테마 여행 상품 조회·예약과 직원 관리 기능을 제공하는 API 명세서")
-                .version("1.0.0");
+            .title("미스터 월드 테마 여행 API")
+            .description("테마 여행 상품 조회·예약과 직원 관리 기능을 제공하는 API 명세서")
+            .version("1.0.0");
     }
 }
