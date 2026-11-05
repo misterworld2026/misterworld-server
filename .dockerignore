@@ -1,8 +1,11 @@
-# The Dockerfile only needs the packaged application.
-# Keep .env, source documents, Git metadata, and local data out of the build context.
+# Allow only the files required to build the application from source.
+# In particular, do not send .env, Git metadata or local build output.
 **
 !Dockerfile
-!build/
-!build/libs/
-!build/libs/*-SNAPSHOT.jar
-build/libs/*-plain.jar
+!gradlew
+!build.gradle
+!settings.gradle
+!gradle/
+!gradle/**
+!src/
+!src/**
