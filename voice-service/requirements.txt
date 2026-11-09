@@ -4,3 +4,5 @@ python-multipart>=0.0.20,<1
 faster-whisper>=1.2,<2
 # faster-whisper 1.2.1 passes metadata_errors to av.open; PyAV 19 removed it.
 av>=11,<19
+torch>=2.6,<3
+transformers>=4.51,<6

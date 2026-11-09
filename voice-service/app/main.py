@@ -1,31 +1,20 @@
-from typing import Any
-
 from fastapi import FastAPI, File, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
+from app.interpreter import InterpretRequest, InterpretationError, interpret_text
 from app.stt import MAX_AUDIO_BYTES, TranscriptionError, transcribe_audio
 
 
 app = FastAPI(title="Mr. World Voice Service")
 
 
-class InterpretRequest(BaseModel):
-    text: str
-    context: dict[str, Any]
-    candidates: dict[str, Any]
-
-
-def not_implemented(feature: str) -> JSONResponse:
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request, _exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
-        status_code=501,
-        content={
-            "error": {
-                "code": "NOT_IMPLEMENTED",
-                "message": f"{feature} is not implemented yet.",
-            }
-        },
+        status_code=400,
+        content={"error": {"code": "INVALID_REQUEST", "message": "Invalid request."}},
     )
 
 
@@ -55,5 +44,12 @@ async def transcribe(audio: UploadFile | None = File(default=None)) -> JSONRespo
 
 
 @app.post("/internal/v1/interpret")
-def interpret(request: InterpretRequest) -> JSONResponse:
-    return not_implemented("Interpretation")
+async def interpret(request: InterpretRequest) -> JSONResponse:
+    try:
+        result = await run_in_threadpool(interpret_text, request)
+    except InterpretationError as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": {"code": exc.code, "message": exc.message}},
+        )
+    return JSONResponse(content=result.model_dump())

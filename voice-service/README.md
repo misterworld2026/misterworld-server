@@ -6,7 +6,7 @@
 
 - 고객이 음성으로 여행상품과 선택 조건을 말하면 인식한 문장과 해석 결과를 화면에 보여준다.
 - 고객은 결과를 확인하거나 수정·재입력한 뒤 일반 여행 신청 화면으로 진행한다.
-- 계획서에 명시된 후보 기술은 Whisper, faster-whisper, Qwen3이며, 음성 처리부는 Python과 FastAPI를 사용한다. 최종 모델과 실행 방식은 아직 확정하지 않았다.
+- 음성 전사는 faster-whisper, 문장 해석은 Qwen3로 구현한다. 음성 처리부는 Python과 FastAPI를 사용한다.
 - 프론트엔드는 음성 입력 및 인식·선택 결과의 확인·수정 화면을 담당한다.
 - Python 음성 처리부는 음성을 텍스트로 변환하고 문장에서 여행 선택 조건을 해석한다.
 - Spring Boot의 `VoiceController`·`VoiceService`는 해석 결과를 실제 상품·옵션·등록 일정과 대조하고 화면에 보여줄 선택 결과를 반환한다.
@@ -56,4 +56,12 @@ python3.13 -m venv .venv
 curl -F "audio=@sample.wav;type=audio/wav" http://127.0.0.1:8001/internal/v1/transcribe
 ```
 
-`POST /internal/v1/interpret`는 아직 `501 NOT_IMPLEMENTED`를 반환한다. 명령 해석은 4단계에서 구현한다.
+`POST /internal/v1/interpret`는 전사하거나 고객이 수정한 문장, 현재 선택 정보, Spring이 조회한 후보를 받아 항목별 해석 결과를 반환한다. 기본 모델은 `Qwen/Qwen3-1.7B`이며 첫 요청에서 모델 파일을 내려받아 `voice-service/models/`에 저장한다. 모델 로딩과 첫 추론에 시간이 걸릴 수 있다. `VOICE_QWEN_MODEL`로 모델을, `VOICE_QWEN_DEVICE`로 실행 장치(`auto`, `cuda`, `mps`, `cpu`)를 지정할 수 있다. `auto`는 사용 가능한 GPU를 우선한다. 메모리나 처리 속도가 부족한 환경에서는 더 작은 모델을 지정할 수 있지만, 해석 품질은 별도로 확인해야 한다.
+
+```bash
+curl -X POST http://127.0.0.1:8001/internal/v1/interpret \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"푸껫 허니문 3월 1일 출발로 그랜드 등급에 오션뷰 객실로 해줘","context":{},"candidates":{"products":[],"schedules":[],"options":[]}}'
+```
+
+해석 결과는 발화에 나타난 표현만 포함하며 상품·일정·옵션 ID와 가격은 반환하지 않는다. 모델이 만든 값은 원문과 대조한 뒤 응답하고, 실제 선택지와의 일치 여부는 Spring에서 검증한다.
