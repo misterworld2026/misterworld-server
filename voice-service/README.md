@@ -67,3 +67,5 @@ curl -X POST http://127.0.0.1:8001/internal/v1/interpret \
 해석 결과는 발화에 나타난 표현만 포함하며 상품·일정·옵션 ID와 가격은 반환하지 않는다. 모델이 만든 값은 원문과 대조한 뒤 응답하고, 실제 선택지와의 일치 여부는 Spring에서 검증한다.
 
 Spring의 공개 API는 인증된 일반 회원이 호출하는 `POST /api/v1/voice/transcriptions`와 `POST /api/v1/voice/interpretations`다. Spring이 Python 서비스에 요청을 보내고 등록된 상품·일정·옵션과 대조한 선택 미리보기를 반환한다. Python 서버를 먼저 실행한 뒤 Spring 서버를 시작한다. 자세한 요청·응답은 [CONTRACT.md](CONTRACT.md), DB 검증과 설정은 [SPRING_INTEGRATION.md](SPRING_INTEGRATION.md)를 따른다.
+
+6단계 검증 명령과 측정 범위는 [evaluation/README.md](evaluation/README.md), React 화면 연결 순서는 [FRONTEND_INTEGRATION.md](FRONTEND_INTEGRATION.md)를 참고한다.

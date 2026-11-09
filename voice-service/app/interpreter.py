@@ -220,6 +220,8 @@ def _field(value: str | None, name: str, text: str) -> InterpretedField:
             return InterpretedField(state="RESOLVED", value=mentioned[0])
         return InterpretedField(state="UNRESOLVED", value=None)
 
+    if name == "tour" and "트레킹" in text and "장비" in text and not any(marker in text for marker in ("여행", "투어", "상품")):
+        return InterpretedField(state="NOT_MENTIONED", value=None)
     if name == "tour" and (spoken_tour := TOUR_PATTERN.search(text)):
         if value is None or value == "?" or _spoken_value(value, text) is None:
             return InterpretedField(state="RESOLVED", value=spoken_tour.group())
@@ -228,8 +230,10 @@ def _field(value: str | None, name: str, text: str) -> InterpretedField:
             return InterpretedField(state="RESOLVED", value=spoken_date.group())
 
     mentioned = _mentioned(name, text)
+    if not mentioned:
+        return InterpretedField(state="NOT_MENTIONED", value=None)
     if value is None or value == "?":
-        return InterpretedField(state="UNRESOLVED" if mentioned else "NOT_MENTIONED", value=None)
+        return InterpretedField(state="UNRESOLVED", value=None)
     if any(vague in value for vague in VAGUE_VALUES):
         return InterpretedField(state="UNRESOLVED", value=None)
 
@@ -237,14 +241,14 @@ def _field(value: str | None, name: str, text: str) -> InterpretedField:
         return InterpretedField(state="RESOLVED", value=spoken_date.group())
     spoken_value = _spoken_value(value, text)
     if spoken_value is None:
-        return InterpretedField(state="UNRESOLVED" if mentioned else "NOT_MENTIONED", value=None)
+        return InterpretedField(state="UNRESOLVED", value=None)
     return InterpretedField(state="RESOLVED", value=spoken_value)
 
 
 def parse_interpretation(raw: str, text: str) -> InterpretationResult:
     clean = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", raw.strip())
     decoded, index = json.JSONDecoder().raw_decode(clean)
-    if re.fullmatch(r"[\s}>]*", clean[index:]) is None:
+    if re.fullmatch(r'[\s}>"]*', clean[index:]) is None:
         raise ValueError("Unexpected model output after JSON.")
     compact = CompactOutput.model_validate(decoded)
     fields: dict[str, Any] = {
@@ -252,9 +256,17 @@ def parse_interpretation(raw: str, text: str) -> InterpretationResult:
         for name in ("tour", "schedule", "grade", "hotel", "transport", "meal")
     }
     fields["extras"] = []
+    specific_options = [
+        re.sub(r"\s+", "", fields[name].value)
+        for name in ("hotel", "transport", "meal")
+        if fields[name].state == "RESOLVED"
+    ]
     for value in compact.extras:
         spoken_value = _spoken_value(value, text) if value else None
         if spoken_value:
+            normalized_extra = re.sub(r"\s+", "", spoken_value)
+            if any(normalized_extra in option or option in normalized_extra for option in specific_options):
+                continue
             fields["extras"].append(InterpretedField(state="RESOLVED", value=spoken_value))
         elif value == "?" and "추가" in text:
             fields["extras"].append(InterpretedField(state="UNRESOLVED", value=None))

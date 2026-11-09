@@ -8,7 +8,14 @@ Spring 담당자가 음성 선택 기능을 구현할 때 읽는 문서다. 요�
 - `VoiceController`, `VoiceService`, `VoiceProcessingClient`가 계약의 공개 API 두 개를 제공한다. Python FastAPI의 `GET /health`, `/internal/v1/transcribe`, `/internal/v1/interpret`가 구현되어 있다.
 - Spring은 `VOICE_PYTHON_BASE_URL`(기본 `http://127.0.0.1:8001`), `VOICE_PYTHON_CONNECT_TIMEOUT_MS`(기본 3000), `VOICE_PYTHON_READ_TIMEOUT_MS`(기본 180000)로 Python 연결을 설정한다. 모델 첫 로딩·추론 시간을 고려해 실제 환경에서 값을 조정한다.
 - `TravelProduct`의 ID는 `id`, `TravelSchedule`의 ID는 `travelScheduleId`, 종료일 필드명은 `arrivalDate`, `TravelOption`의 ID는 `id`다. API 계약의 `id`·`departureDate`로 변환할 때 필드명을 확인한다.
-- 개발용 `dev-seed.sql`의 신규 일정 상태는 `RECRUITING_SCHEDULE`로 맞췄다. 기존 DB에 `RECRUITING` 값이 이미 있으면 다음 SQL을 실행해 갱신해야 한다: `UPDATE 여행일정 SET 여행상태 = 'RECRUITING_SCHEDULE' WHERE 여행상태 = 'RECRUITING';`
+- 개발용 `dev-seed.sql`의 신규 일정 상태는 `RECRUITING_SCHEDULE`로 맞췄다. 기존 DB의 `여행상태`가 옛 값만 허용하는 MySQL `ENUM`이면 `UPDATE`만으로는 새 값을 저장할 수 없다. 백업 후 아래 SQL로 컬럼을 `VARCHAR`로 바꾸고 기존 값을 변환해야 한다.
+
+  ```sql
+  ALTER TABLE `여행일정` MODIFY COLUMN `여행상태` VARCHAR(30) NULL;
+  UPDATE `여행일정`
+  SET `여행상태` = CONCAT(`여행상태`, '_SCHEDULE')
+  WHERE `여행상태` IN ('RECRUITING', 'CLOSED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+  ```
 - 개발용 `dev-seed.sql` 주석은 옵션의 `grade = null`을 해당 상품의 모든 판매 등급에서 사용 가능한 값으로 설명한다. 실제 상품·옵션 검증 규칙에서도 이 의미를 사용할지 담당자와 맞춘 뒤 동일하게 적용한다.
 
 ## Spring 구성요소
