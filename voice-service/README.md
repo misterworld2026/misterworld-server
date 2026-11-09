@@ -33,6 +33,17 @@
 
 ## 연동 계약
 
-API 경로, 요청·응답 JSON, 상태값, 오류 처리는 [CONTRACT.md](CONTRACT.md)를 따른다. 설계 산출물 4.3의 `interpretVoice(text, context)`는 전사한 문장을 고객이 확인한 뒤 호출하는 해석 API로 연결한다.
+API 경로, 요청·응답 JSON, 상태값, 오류 처리는 [CONTRACT.md](CONTRACT.md)를 따른다. Spring 백엔드 담당자는 [SPRING_INTEGRATION.md](SPRING_INTEGRATION.md)의 구현 순서와 검증 규칙도 확인한다. 설계 산출물 4.3의 `interpretVoice(text, context)`는 전사한 문장을 고객이 확인한 뒤 호출하는 해석 API로 연결한다.
 
 음성 명령 성공률 측정용 발화 목록과 판정 기준은 통합 검증 단계에서 작성한다. 계획서의 개발 목표치는 **80%**다.
+
+## 로컬 실행
+
+```bash
+cd voice-service
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+`GET http://127.0.0.1:8001/health`가 `{"status":"ok"}`를 반환하면 기본 서버가 실행 중이다. API 문서는 `http://127.0.0.1:8001/docs`에서 볼 수 있다. 현재 `/internal/v1/transcribe`와 `/internal/v1/interpret`는 경로와 입력 형식만 만든 상태이며, 정상 입력에는 `501 NOT_IMPLEMENTED`를 반환한다. STT와 명령 해석은 다음 단계에서 구현한다.

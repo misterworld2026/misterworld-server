@@ -2,6 +2,8 @@
 
 이 문서는 React, Spring Boot, Python/FastAPI 사이의 **구현 계약**이다. 프로젝트 계획서의 음성 기반 상품 선택 목표와 설계 산출물 1.1의 3.2~3.4, 3.7, 4.3절을 바탕으로 한다. 아래 경로·필드명·상태값·업로드 한도는 해당 문서에 없던 부분을 연동을 위해 정한 것이다.
 
+Spring 담당자의 구현 순서와 DB 검증 규칙은 [SPRING_INTEGRATION.md](SPRING_INTEGRATION.md)를 함께 확인한다.
+
 ## 1. 호출 흐름과 책임
 
 1. React는 녹음 파일을 Spring의 `POST /api/v1/voice/transcriptions`로 전송한다.
@@ -11,7 +13,7 @@
 5. Spring은 DB에서 선택 가능한 상품·일정·옵션을 조회하여 내부 FastAPI의 `POST /internal/v1/interpret`에 문장·현재 선택·후보 목록을 보낸다. Python은 문장의 조건만 해석한다.
 6. Spring은 Python 결과를 DB와 업무 규칙으로 검증하고 선택 미리보기를 React에 반환한다. 고객의 최종 확인 후에만 별도의 기존 여행 신청 흐름으로 이동한다.
 
-브라우저는 FastAPI를 직접 호출하지 않는다. FastAPI에 회원 토큰이나 개인정보를 전달하지 않는다. 상품·일정·옵션 ID와 가격의 최종 판단은 Spring이 한다.
+브라우저는 FastAPI를 직접 호출하지 않는다. FastAPI에 회원 토큰이나 회원 프로필 정보를 별도 필드로 전달하지 않는다. 상품·일정·옵션 ID와 가격의 최종 판단은 Spring이 한다.
 
 ## 2. 공통 표현
 
