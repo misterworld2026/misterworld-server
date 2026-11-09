@@ -46,4 +46,14 @@ python3.13 -m venv .venv
 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
-`GET http://127.0.0.1:8001/health`가 `{"status":"ok"}`를 반환하면 기본 서버가 실행 중이다. API 문서는 `http://127.0.0.1:8001/docs`에서 볼 수 있다. 현재 `/internal/v1/transcribe`와 `/internal/v1/interpret`는 경로와 입력 형식만 만든 상태이며, 정상 입력에는 `501 NOT_IMPLEMENTED`를 반환한다. STT와 명령 해석은 다음 단계에서 구현한다.
+`GET http://127.0.0.1:8001/health`가 `{"status":"ok"}`를 반환하면 서버가 실행 중이다. API 문서는 `http://127.0.0.1:8001/docs`에서 볼 수 있다.
+
+`POST /internal/v1/transcribe`는 `audio` 파일을 받아 한국어 문장을 반환한다. 지원 형식과 제한은 [CONTRACT.md](CONTRACT.md)를 따른다. 첫 전사 요청에서 Whisper 모델을 다운로드하므로 인터넷 연결이 필요하며, 모델 파일은 Git에서 제외되는 `voice-service/models/`에 저장된다. 기본 모델은 다국어 `small`을 CPU에서 실행한다. 필요하면 `VOICE_STT_MODEL`, `VOICE_STT_DEVICE`, `VOICE_STT_COMPUTE_TYPE`, `VOICE_STT_HOTWORDS` 환경 변수로 변경할 수 있다. 기본 힌트 단어는 허니문·효도 여행·골프 여행·트레킹 여행이다. 이는 인식 보조용이며 실제 상품 검증은 Spring이 수행한다.
+
+서버를 켠 뒤 로컬 음성 파일로 전사를 확인할 수 있다.
+
+```bash
+curl -F "audio=@sample.wav;type=audio/wav" http://127.0.0.1:8001/internal/v1/transcribe
+```
+
+`POST /internal/v1/interpret`는 아직 `501 NOT_IMPLEMENTED`를 반환한다. 명령 해석은 4단계에서 구현한다.

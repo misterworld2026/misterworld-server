@@ -6,7 +6,7 @@ Spring 담당자가 음성 선택 기능을 구현할 때 읽는 문서다. 요�
 
 - `feat/voice-selection`은 오래된 `main`에서 분기했다. 인증·엔티티·상품 관련 코드는 다른 기능 브랜치에 있다. Spring 구현 전에 팀의 최신 공통 코드를 합쳐야 한다.
 - `feat/travel-product-catalog` 기준 `VoiceController`와 `VoiceService`는 빈 클래스이고, `TravelScheduleRepository`·`TravelOptionRepository`에는 음성 후보 조회 메서드가 없다. 해당 코드가 현재 브랜치에 이미 있다고 가정하지 않는다.
-- Python FastAPI는 현재 `GET /health`만 동작한다. `/internal/v1/transcribe`와 `/internal/v1/interpret`는 정상 입력에도 `501 NOT_IMPLEMENTED`를 반환한다. STT·명령 해석 구현과 연결될 때까지 이 응답을 정상 결과로 처리하지 않는다.
+- Python FastAPI의 `GET /health`와 `/internal/v1/transcribe`는 동작한다. `/internal/v1/interpret`는 아직 정상 입력에도 `501 NOT_IMPLEMENTED`를 반환한다. 명령 해석 구현 전까지 이 응답을 정상 결과로 처리하지 않는다.
 - `TravelProduct`의 ID는 `id`, `TravelSchedule`의 ID는 `travelScheduleId`, 종료일 필드명은 `arrivalDate`, `TravelOption`의 ID는 `id`다. API 계약의 `id`·`departureDate`로 변환할 때 필드명을 확인한다.
 - 현재 개발용 `dev-seed.sql`의 일정 상태 문자열은 `RECRUITING`이지만, 최신 `TravelSchedule.Status`는 `RECRUITING_SCHEDULE`이다. 음성 기능을 DB와 통합하기 전에 시드 데이터와 enum 값을 맞춰야 한다. 이 문서 작업에서는 DB·시드 파일을 변경하지 않는다.
 - 개발용 `dev-seed.sql` 주석은 옵션의 `grade = null`을 해당 상품의 모든 판매 등급에서 사용 가능한 값으로 설명한다. 실제 상품·옵션 검증 규칙에서도 이 의미를 사용할지 담당자와 맞춘 뒤 동일하게 적용한다.
@@ -55,7 +55,7 @@ Spring 담당자가 음성 선택 기능을 구현할 때 읽는 문서다. 요�
 - 공개 음성 API는 고객의 인증과 `MEMBER` 권한을 확인한다. FastAPI 내부 API는 브라우저에 직접 노출하지 않고 Spring에서만 호출한다. Spring의 회원 토큰이나 회원 프로필 정보를 Python 요청의 별도 필드로 전달하지 않는다.
 - 파일 업로드의 허용 형식(`audio/webm`, `audio/mp4`, `audio/wav`), 10 MiB·30초 제한은 공개 API와 Python 입력 단계에서 일관되게 적용한다. Content-Type만 믿지 않고 실제 디코딩 가능 여부도 확인한다.
 - 빈 문장·누락 파일은 400, 초과 파일은 413, 지원하지 않는 파일은 415, 음성 인식 불가는 422, Python 오류는 502, 시간 초과는 504로 반환한다. 공개 오류 본문은 프로젝트의 `ResultDto` 형식(`success`, `code`, `message`)을 따른다.
-- 연결 실패·501·잘못된 Python 응답을 성공으로 변환하지 않는다. 내부 오류 상세나 스택 트레이스를 고객에게 보여주지 않는다. 화면은 재시도 또는 일반 GUI 선택으로 계속 진행할 수 있어야 한다.
+- 연결 실패·501·잘못된 Python 응답을 성공으로 변환하지 않는다. 첫 STT 요청에서는 모델 다운로드가 일어날 수 있으므로 실행 환경에 모델을 미리 준비하거나 호출 시간 제한을 고려한다. 내부 오류 상세나 스택 트레이스를 고객에게 보여주지 않는다. 화면은 재시도 또는 일반 GUI 선택으로 계속 진행할 수 있어야 한다.
 
 ## 연동 확인 항목
 
