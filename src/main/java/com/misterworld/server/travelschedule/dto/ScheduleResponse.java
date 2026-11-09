@@ -1,6 +1,6 @@
 package com.misterworld.server.travelschedule.dto;
 
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
+import com.misterworld.server.domain.ScheduleStatus;
 import java.time.LocalDate;
 /** PDF p.32 management response; preserves the existing schedule JSON contract. */
 public record ScheduleResponse(Long travelScheduleId,Long productId,LocalDate departureDate,

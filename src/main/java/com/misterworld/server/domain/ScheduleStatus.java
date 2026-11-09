@@ -1,4 +1,4 @@
-package com.misterworld.server.travelschedule.entity;
+package com.misterworld.server.domain;
 
 public enum ScheduleStatus {
     RECRUITING_SCHEDULE,

@@ -2,7 +2,7 @@ package com.misterworld.server.voice.service;
 
 import com.misterworld.server.common.BusinessException;
 import com.misterworld.server.travelproduct.service.TravelProductService;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.repository.TravelScheduleRepository;
 import com.misterworld.server.voice.dto.VoiceCommandRequest;
 import com.misterworld.server.voice.dto.VoiceSelectionResult;
 import com.misterworld.server.voice.integration.VoiceProcessingClient;

@@ -69,18 +69,3 @@ curl -X POST http://127.0.0.1:8001/internal/v1/interpret \
 Spring의 공개 API는 인증된 일반 회원이 호출하는 `POST /api/v1/voice/transcriptions`와 `POST /api/v1/voice/interpretations`다. Spring이 Python 서비스에 요청을 보내고 등록된 상품·일정·옵션과 대조한 선택 미리보기를 반환한다. Python 서버를 먼저 실행한 뒤 Spring 서버를 시작한다. 자세한 요청·응답은 [CONTRACT.md](CONTRACT.md), DB 검증과 설정은 [SPRING_INTEGRATION.md](SPRING_INTEGRATION.md)를 따른다.
 
 6단계 검증 명령과 측정 범위는 [evaluation/README.md](evaluation/README.md), React 화면 연결 순서는 [FRONTEND_INTEGRATION.md](FRONTEND_INTEGRATION.md)를 참고한다.
-
-## Windows 및 Docker에서 Spring 연결
-
-Windows PowerShell에서는 다음 명령으로 Python 서버를 실행한다.
-
-```powershell
-cd voice-service
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001
-```
-
-Spring을 IntelliJ 또는 Gradle로 실행할 때는 `VOICE_PYTHON_BASE_URL=http://127.0.0.1:8001`을 사용한다. 타임아웃은 `.env.example`을 참고한다. `.env`는 Compose가 읽으며 IntelliJ 실행 설정에는 환경변수를 따로 지정한다.
-
-Spring만 Docker에서 실행하고 Python을 호스트에서 실행할 때 Compose는 `http://host.docker.internal:8001`에 연결한다. 이 경우 Python 실행 명령의 `--host`를 `0.0.0.0`으로 설정한다. 다른 서버에서 Python을 실행한다면 `VOICE_DOCKER_PYTHON_BASE_URL`로 실제 주소를 지정한다. Compose는 Python 서버나 모델을 자동으로 설치·실행하지 않는다.

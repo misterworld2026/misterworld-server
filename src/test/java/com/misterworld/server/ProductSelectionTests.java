@@ -3,10 +3,10 @@ package com.misterworld.server;
 import com.misterworld.server.common.BusinessException;
 import com.misterworld.server.travelproduct.dto.TravelOptionRequest;
 import com.misterworld.server.travelproduct.dto.TravelProductRequest;
-import com.misterworld.server.travelproduct.entity.TravelOption;
-import com.misterworld.server.travelproduct.entity.TravelProduct;
-import com.misterworld.server.travelproduct.repository.TravelOptionRepository;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.domain.TravelOption;
+import com.misterworld.server.domain.TravelProduct;
+import com.misterworld.server.repository.TravelOptionRepository;
+import com.misterworld.server.repository.TravelProductRepository;
 import com.misterworld.server.travelproduct.service.TravelProductService;
 
 import org.junit.jupiter.api.Test;

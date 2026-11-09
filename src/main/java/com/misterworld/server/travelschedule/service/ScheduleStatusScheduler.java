@@ -1,7 +1,7 @@
 package com.misterworld.server.travelschedule.service;
 
 import com.misterworld.server.travelapplication.service.BookingPolicy;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.repository.TravelScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.Set;
 
-import static com.misterworld.server.travelschedule.entity.ScheduleStatus.*;
+import static com.misterworld.server.domain.ScheduleStatus.*;
 
 @Service
 @RequiredArgsConstructor

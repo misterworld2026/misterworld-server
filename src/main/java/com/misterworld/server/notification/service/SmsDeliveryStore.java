@@ -3,7 +3,7 @@ package com.misterworld.server.notification.service;
 import com.misterworld.server.notification.integration.SmsClient;
 import com.misterworld.server.notification.repository.SmsNotificationRepository;
 import com.misterworld.server.travelapplication.entity.ApplicationStatus;
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
+import com.misterworld.server.domain.ScheduleStatus;
 
 import com.misterworld.server.notification.entity.*;
 import lombok.RequiredArgsConstructor;

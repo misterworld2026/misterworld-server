@@ -1,6 +1,6 @@
 package com.misterworld.server.inventory.entity;
 
-import com.misterworld.server.travelproduct.entity.TravelProduct;
+import com.misterworld.server.domain.TravelProduct;
 
 
 import lombok.Getter;

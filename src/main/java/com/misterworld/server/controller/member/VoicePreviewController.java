@@ -1,9 +1,9 @@
-package com.misterworld.server.voice.controller;
+package com.misterworld.server.controller.member;
 
-import com.misterworld.server.voice.dto.VoiceDtos.InterpretationRequest;
-import com.misterworld.server.voice.dto.VoiceDtos.InterpretationResponse;
-import com.misterworld.server.voice.dto.VoiceDtos.Transcription;
-import com.misterworld.server.voice.service.VoicePreviewService;
+import com.misterworld.server.dto.voice.VoiceDtos.InterpretationRequest;
+import com.misterworld.server.dto.voice.VoiceDtos.InterpretationResponse;
+import com.misterworld.server.dto.voice.VoiceDtos.Transcription;
+import com.misterworld.server.service.VoicePreviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;

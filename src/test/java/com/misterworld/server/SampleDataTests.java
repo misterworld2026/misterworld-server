@@ -2,8 +2,8 @@ package com.misterworld.server;
 
 import com.misterworld.server.sample.SampleDataInitializer;
 import com.misterworld.server.member.repository.MemberRepository;
-import com.misterworld.server.travelproduct.repository.*;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.repository.*;
+import com.misterworld.server.repository.TravelScheduleRepository;
 import com.misterworld.server.travelapplication.repository.*;
 import com.misterworld.server.notification.repository.SmsNotificationRepository;
 import org.junit.jupiter.api.Test;

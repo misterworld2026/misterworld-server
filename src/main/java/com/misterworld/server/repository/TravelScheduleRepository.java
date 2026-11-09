@@ -1,7 +1,7 @@
-package com.misterworld.server.travelschedule.repository;
+package com.misterworld.server.repository;
 
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
-import com.misterworld.server.travelschedule.entity.TravelSchedule;
+import com.misterworld.server.domain.ScheduleStatus;
+import com.misterworld.server.domain.TravelSchedule;
 
 
 import java.time.LocalDate;

@@ -6,7 +6,7 @@ import com.misterworld.server.inventory.dto.ItemInventoryRequest;
 import com.misterworld.server.inventory.entity.InventoryStatus;
 import com.misterworld.server.inventory.entity.ItemInventory;
 import com.misterworld.server.inventory.repository.ItemInventoryRepository;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.repository.TravelProductRepository;
 
 
 import lombok.RequiredArgsConstructor;

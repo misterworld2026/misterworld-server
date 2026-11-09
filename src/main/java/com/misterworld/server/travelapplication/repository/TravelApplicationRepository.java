@@ -2,7 +2,7 @@ package com.misterworld.server.travelapplication.repository;
 
 import com.misterworld.server.travelapplication.entity.ApplicationStatus;
 import com.misterworld.server.travelapplication.entity.TravelApplication;
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
+import com.misterworld.server.domain.ScheduleStatus;
 
 
 import java.util.*;
@@ -24,7 +24,7 @@ public interface TravelApplicationRepository extends JpaRepository<TravelApplica
     boolean existsByScheduleId(@Param("scheduleId") Long scheduleId);
 
     @EntityGraph(attributePaths = {"travelSchedule", "travelSchedule.travelProduct"})
-    @Query("select a from TravelApplication a where a.member.id = :memberId and a.status = com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.travelSchedule.status = com.misterworld.server.travelschedule.entity.ScheduleStatus.COMPLETED_SCHEDULE order by a.travelSchedule.arrivalDate desc, a.id desc")
+    @Query("select a from TravelApplication a where a.member.id = :memberId and a.status = com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.travelSchedule.status = com.misterworld.server.domain.ScheduleStatus.COMPLETED_SCHEDULE order by a.travelSchedule.arrivalDate desc, a.id desc")
     Page<TravelApplication> findCompletedHistoryByMemberId(@Param("memberId") Long memberId, Pageable pageable);
     Optional<TravelApplication> findByMemberIdAndRequestKey(Long memberId, String requestKey);
 
@@ -36,7 +36,7 @@ public interface TravelApplicationRepository extends JpaRepository<TravelApplica
     @Query("select a from TravelApplication a where a.travelSchedule.travelScheduleId=:scheduleId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED order by a.id")
     List<TravelApplication> findNotificationTargets(@Param("scheduleId") Long scheduleId);
 
-    @Query("select count(distinct a.travelSchedule.travelScheduleId) from TravelApplication a where a.member.id=:memberId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.travelSchedule.status=com.misterworld.server.travelschedule.entity.ScheduleStatus.COMPLETED_SCHEDULE")
+    @Query("select count(distinct a.travelSchedule.travelScheduleId) from TravelApplication a where a.member.id=:memberId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.travelSchedule.status=com.misterworld.server.domain.ScheduleStatus.COMPLETED_SCHEDULE")
     long countCompletedTrips(@Param("memberId") Long memberId);
 
     @Query("select count(a)>0 from TravelApplication a where a.travelSchedule.travelProduct.id=:productId")

@@ -1,6 +1,6 @@
 package com.misterworld.server.travelproduct.dto;
 
-import com.misterworld.server.travelproduct.entity.TravelOption;
+import com.misterworld.server.domain.TravelOption;
 
 
 public record TravelOptionResponse(

@@ -17,13 +17,13 @@ import com.misterworld.server.travelapplication.entity.TravelParticipant;
 import com.misterworld.server.travelapplication.repository.TravelApplicationRepository;
 import com.misterworld.server.travelapplication.repository.TravelParticipantRepository;
 import com.misterworld.server.travelproduct.dto.TravelOptionResponse;
-import com.misterworld.server.travelproduct.entity.TravelOption;
-import com.misterworld.server.travelproduct.entity.TravelProduct;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.domain.TravelOption;
+import com.misterworld.server.domain.TravelProduct;
+import com.misterworld.server.repository.TravelProductRepository;
 import com.misterworld.server.travelproduct.service.TravelProductService;
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
-import com.misterworld.server.travelschedule.entity.TravelSchedule;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.domain.ScheduleStatus;
+import com.misterworld.server.domain.TravelSchedule;
+import com.misterworld.server.repository.TravelScheduleRepository;
 import com.misterworld.server.travelschedule.service.TravelScheduleService;
 
 

@@ -7,13 +7,13 @@ import com.misterworld.server.travelapplication.entity.ApplicationStatus;
 import com.misterworld.server.travelapplication.entity.TravelApplication;
 import com.misterworld.server.travelapplication.repository.TravelApplicationRepository;
 import com.misterworld.server.travelapplication.service.BookingPolicy;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.repository.TravelProductRepository;
 import com.misterworld.server.travelschedule.dto.ScheduleResponse;
 import com.misterworld.server.travelschedule.dto.TravelScheduleRequest;
 import com.misterworld.server.travelschedule.dto.TravelScheduleResponse;
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
-import com.misterworld.server.travelschedule.entity.TravelSchedule;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.domain.ScheduleStatus;
+import com.misterworld.server.domain.TravelSchedule;
+import com.misterworld.server.repository.TravelScheduleRepository;
 
 
 import lombok.RequiredArgsConstructor;

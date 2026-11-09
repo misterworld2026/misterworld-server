@@ -1,4 +1,4 @@
-package com.misterworld.server.travelproduct.entity;
+package com.misterworld.server.domain;
 
 import lombok.Getter;
 import lombok.Setter;

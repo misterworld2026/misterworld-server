@@ -1,6 +1,6 @@
 package com.misterworld.server.travelproduct.dto;
 
-import com.misterworld.server.travelproduct.entity.TravelProduct;
+import com.misterworld.server.domain.TravelProduct;
 
 
 import java.util.List;

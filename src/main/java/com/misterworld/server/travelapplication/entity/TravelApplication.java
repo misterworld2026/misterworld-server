@@ -1,7 +1,7 @@
 package com.misterworld.server.travelapplication.entity;
 
 import com.misterworld.server.member.entity.Member;
-import com.misterworld.server.travelschedule.entity.TravelSchedule;
+import com.misterworld.server.domain.TravelSchedule;
 
 
 import lombok.Getter;

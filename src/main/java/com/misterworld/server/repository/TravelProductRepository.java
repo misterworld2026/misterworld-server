@@ -1,6 +1,6 @@
-package com.misterworld.server.travelproduct.repository;
+package com.misterworld.server.repository;
 
-import com.misterworld.server.travelproduct.entity.TravelProduct;
+import com.misterworld.server.domain.TravelProduct;
 
 
 import java.util.*;

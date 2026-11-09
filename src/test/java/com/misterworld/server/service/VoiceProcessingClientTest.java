@@ -1,6 +1,6 @@
-package com.misterworld.server.voice.service;
+package com.misterworld.server.service;
 
-import com.misterworld.server.voice.dto.VoiceDtos.*;
+import com.misterworld.server.dto.voice.VoiceDtos.*;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;

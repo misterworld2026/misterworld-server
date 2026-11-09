@@ -1,8 +1,8 @@
-package com.misterworld.server.voice.service;
+package com.misterworld.server.service;
 
-import com.misterworld.server.voice.dto.VoiceDtos.InternalRequest;
-import com.misterworld.server.voice.dto.VoiceDtos.InternalResponse;
-import com.misterworld.server.voice.dto.VoiceDtos.Transcription;
+import com.misterworld.server.dto.voice.VoiceDtos.InternalRequest;
+import com.misterworld.server.dto.voice.VoiceDtos.InternalResponse;
+import com.misterworld.server.dto.voice.VoiceDtos.Transcription;
 import com.misterworld.server.exception.VoiceProcessingException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;

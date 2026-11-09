@@ -1,13 +1,13 @@
-package com.misterworld.server.voice.service;
+package com.misterworld.server.service;
 
-import com.misterworld.server.voice.dto.VoiceDtos.*;
-import com.misterworld.server.travelproduct.entity.TravelOption;
-import com.misterworld.server.travelproduct.entity.TravelProduct;
-import com.misterworld.server.travelschedule.entity.TravelSchedule;
-import com.misterworld.server.travelschedule.entity.ScheduleStatus;
-import com.misterworld.server.travelproduct.repository.TravelOptionRepository;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
-import com.misterworld.server.travelschedule.repository.TravelScheduleRepository;
+import com.misterworld.server.dto.voice.VoiceDtos.*;
+import com.misterworld.server.domain.TravelOption;
+import com.misterworld.server.domain.TravelProduct;
+import com.misterworld.server.domain.TravelSchedule;
+import com.misterworld.server.domain.ScheduleStatus;
+import com.misterworld.server.repository.TravelOptionRepository;
+import com.misterworld.server.repository.TravelProductRepository;
+import com.misterworld.server.repository.TravelScheduleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

@@ -1,4 +1,4 @@
-package com.misterworld.server.voice.dto;
+package com.misterworld.server.dto.voice;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;

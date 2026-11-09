@@ -3,8 +3,8 @@ package com.misterworld.server;
 import com.misterworld.server.inventory.entity.InventoryStatus;
 import com.misterworld.server.inventory.entity.ItemInventory;
 import com.misterworld.server.inventory.repository.ItemInventoryRepository;
-import com.misterworld.server.travelproduct.entity.TravelProduct;
-import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.domain.TravelProduct;
+import com.misterworld.server.repository.TravelProductRepository;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
