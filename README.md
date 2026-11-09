@@ -54,6 +54,8 @@ java -jar build/libs/misterworld-server-0.0.1-SNAPSHOT.jar
 
 외부 SMS·음성은 현재 명시적인 미연결 어댑터다. SMS 발송·재시도/outbox 구현이 있다고 주장하지 않는다. 음성 `/api/voice/interpret`는 503을 반환하며, 미언급/실패 분리와 선택 검증 로직만 단위 검증한다. 결제·환불 API는 구현하지 않았다.
 
+별도로 `/api/v1/voice/transcriptions`와 `/api/v1/voice/interpretations`는 Python 음성 서비스와 연결된 회원용 API다. 실행 방법과 요청·응답 계약은 [voice-service/README.md](voice-service/README.md)와 [voice-service/CONTRACT.md](voice-service/CONTRACT.md)를 참고한다.
+
 
 ## Lombok 적용
 

@@ -54,6 +54,25 @@ class ApiIntegrationTests {
     }
 
     @Test
+    void voicePreviewRoutesRequireMembersAndValidateInput() throws Exception {
+        assertThat(call("GET", "/", null, null).statusCode()).isEqualTo(302);
+        assertThat(call("POST", "/api/v1/voice/interpretations", "{}", null).statusCode()).isEqualTo(401);
+        assertThat(call("POST", "/api/auth/signup", signup("voice-preview@example.com"), null).statusCode()).isEqualTo(201);
+        String memberToken = token("voice-preview@example.com");
+        assertThat(call("POST", "/api/v1/voice/interpretations", "{}", memberToken).statusCode()).isEqualTo(400);
+        var staff = new Member();
+        staff.setEmail("voice-staff@example.com");
+        staff.setPassword(encoder.encode("test-password-123"));
+        staff.setName("Voice staff");
+        staff.setAddress("Seoul");
+        staff.setPhoneNumber("01012345678");
+        staff.setRole(Role.STAFF);
+        staff.setTravelCount(0);
+        members.saveAndFlush(staff);
+        assertThat(call("POST", "/api/v1/voice/interpretations", "{}", token("voice-staff@example.com")).statusCode())
+            .isEqualTo(403);
+    }
+    @Test
     void authenticationOwnershipRefreshRotationAndRevocation() throws Exception {
         assertThat(call("GET", "/api/my/profile", null, null).statusCode()).isEqualTo(401);
         assertThat(call("POST", "/api/auth/signup", signup("first@example.com"), null).statusCode()).isEqualTo(201);
