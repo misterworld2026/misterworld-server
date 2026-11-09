@@ -1,0 +1,11 @@
+# Allow only the files required to build the application from source.
+# In particular, do not send .env, Git metadata or local build output.
+**
+!Dockerfile
+!gradlew
+!build.gradle
+!settings.gradle
+!gradle/
+!gradle/**
+!src/
+!src/**

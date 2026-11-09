@@ -1,135 +1,114 @@
 package com.misterworld.server.service;
 
-import com.misterworld.server.dto.request.LoginRequest;
-import com.misterworld.server.dto.response.LoginResponse;
-import com.misterworld.server.exception.AuthenticationFailedException;
+import lombok.RequiredArgsConstructor;
+
+import com.misterworld.server.common.BusinessException;
+import com.misterworld.server.domain.*;
+import com.misterworld.server.dto.*;
 import com.misterworld.server.repository.MemberRepository;
-import com.misterworld.server.dto.request.SignUpRequest;
-import com.misterworld.server.dto.response.SignUpResponse;
-import com.misterworld.server.entity.Member;
-import com.misterworld.server.security.JwtProvider;
-import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.misterworld.server.security.*;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.*;
+import java.util.*;
+
+import static com.misterworld.server.common.BusinessException.require;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AuthService {
+    private final MemberRepository members;
+    private final PasswordEncoder encoder;
+    private final JwtProvider jwt;
+    private final TokenSessionRepository sessions;
+    private final Clock clock;
 
-    private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtProvider jwtProvider;
-
-    // 일반 유저 회원가입
     @Transactional
     public SignUpResponse signup(SignUpRequest request) {
-        if(!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
-
-        if(memberRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
-        }
-
-        Member member = Member.create(
-                request.getEmail(),
-                passwordEncoder.encode(request.getPassword()),
-                request.getName(),
-                request.getAddress(),
-                request.getPhoneNumber(),
-                Member.Role.MEMBER
-        );
-
-        Member savedMember = memberRepository.save(member);
-
-        return new SignUpResponse(
-                savedMember.getId(),
-                savedMember.getEmail(),
-                savedMember.getName(),
-                savedMember.getRole()
-        );
+        validatePasswordConfirmation(request);
+        String email = request.email().strip().toLowerCase(Locale.ROOT);
+        if (members.existsByEmail(email))
+            throw new BusinessException(409, "DUPLICATE_EMAIL", "이미 가입한 이메일입니다.");
+        require(request.password().getBytes(StandardCharsets.UTF_8).length <= 72, "비밀번호는 UTF-8 72바이트 이하여야 합니다.");
+        var member = new Member();
+        member.setEmail(email);
+        member.setPassword(encoder.encode(request.password()));
+        member.setName(request.name());
+        member.setAddress(request.address());
+        member.setPhoneNumber(request.phoneNumber());
+        member.setTravelCount(0);
+        member.setRole(Role.MEMBER);
+        members.saveAndFlush(member);
+        return new SignUpResponse(member.getId(), member.getEmail(), member.getRole());
     }
 
-    // 직원 회원가입
-    @Transactional
+    public void validatePasswordConfirmation(SignUpRequest request) {
+        require(request.password().equals(request.passwordConfirmation()), "비밀번호 확인이 일치하지 않습니다.");
+    }
+
     public SignUpResponse createStaffAccount(SignUpRequest request) {
-        if(!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
-
-        if(memberRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
-        }
-
-        Member member = Member.create(
-                request.getEmail(),
-                passwordEncoder.encode(request.getPassword()),
-                request.getName(),
-                request.getAddress(),
-                request.getPhoneNumber(),
-                Member.Role.STAFF
-        );
-
-        Member savedMember = memberRepository.save(member);
-
-        return new SignUpResponse(
-                savedMember.getId(),
-                savedMember.getEmail(),
-                savedMember.getName(),
-                savedMember.getRole()
-        );
+        throw BusinessException.policy();
     }
 
-    // 일반 회원 로그인
+    @Transactional
     public LoginResponse login(LoginRequest request) {
-
-        Member member = memberRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AuthenticationFailedException("이메일 또는 비밀번호가 올바르지 않습니다."));
-
-        if(member.getPassword() == null || !passwordEncoder.matches(request.getPassword(), member.getPassword())) {
-            throw new AuthenticationFailedException("이메일 또는 비밀번호가 올바르지 않습니다.");
-        }
-
-        String accessToken = jwtProvider.generateAccessToken(member);
-        String refreshToken = jwtProvider.generateRefreshToken(member);
-
-        return new LoginResponse(
-                member.getId(),
-                member.getEmail(),
-                member.getName(),
-                member.getRole(),
-                accessToken,
-                refreshToken,
-                "Bearer"
-        );
+        return login(request, false);
     }
 
-    // 직원 로그인
-    public LoginResponse staffLogin(LoginRequest request) {
+    @Transactional
+    public LoginResponse login(LoginRequest request, boolean staffOnly) {
+        var member = members.findByEmail(request.email().strip().toLowerCase(Locale.ROOT))
+            .orElseThrow(AuthService::unauthorized);
+        if (!encoder.matches(request.password(), member.getPassword()) || (staffOnly && member.getRole() != Role.STAFF))
+            throw unauthorized();
+        return issue(member);
+    }
 
-        Member member = memberRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AuthenticationFailedException("이메일 또는 비밀번호가 올바르지 않습니다."));
+    private LoginResponse issue(Member member) {
+        String id = UUID.randomUUID().toString();
+        String refreshToken = jwt.generateRefreshToken(member, id);
+        sessions.save(
+            new TokenSession(id, member.getId(), hash(refreshToken), clock.instant().plus(Duration.ofDays(14))));
+        return new LoginResponse(jwt.generateAccessToken(member, id), refreshToken, member.getRole());
+    }
 
-        if(member.getPassword() == null || !passwordEncoder.matches(request.getPassword(), member.getPassword())) {
-            throw new AuthenticationFailedException("이메일 또는 비밀번호가 올바르지 않습니다.");
+    @Transactional
+    public LoginResponse refresh(String refreshToken) {
+        var claims = jwt.validate(refreshToken, "REFRESH");
+        try {
+            var session = sessions.findByIdForUpdate(claims.getStringClaim("sid"))
+                .orElseThrow(AuthService::unauthorized);
+            if (session.isRevoked() || !session.getExpiresAt().isAfter(clock.instant()) || !session.getMemberId()
+                .toString().equals(claims.getSubject()) || !MessageDigest.isEqual(
+                session.getRefreshHash().getBytes(StandardCharsets.UTF_8),
+                hash(refreshToken).getBytes(StandardCharsets.UTF_8)))
+                throw unauthorized();
+            session.revoke();
+            return issue(members.findById(session.getMemberId()).orElseThrow(AuthService::unauthorized));
+        } catch (java.text.ParseException error) {
+            throw unauthorized();
         }
+    }
 
-        if(member.getRole() != Member.Role.STAFF) {
-            throw new AuthenticationFailedException("이메일 또는 비밀번호가 올바르지 않습니다.");
+    @Transactional
+    public void logout(String sessionId) {
+        sessions.findByIdForUpdate(sessionId).ifPresent(TokenSession::revoke);
+    }
+
+    private static String hash(String value) {
+        try {
+            return HexFormat.of()
+                .formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception error) {
+            throw new IllegalStateException();
         }
+    }
 
-        String accessToken = jwtProvider.generateAccessToken(member);
-        String refreshToken = jwtProvider.generateRefreshToken(member);
-
-        return new LoginResponse(
-                member.getId(),
-                member.getEmail(),
-                member.getName(),
-                member.getRole(),
-                accessToken,
-                refreshToken,
-                "Bearer"
-        );
+    private static BusinessException unauthorized() {
+        return new BusinessException(401, "AUTHENTICATION_FAILED", "인증 정보가 올바르지 않습니다.");
     }
 }

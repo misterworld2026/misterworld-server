@@ -9,7 +9,7 @@
 - 음성 전사는 faster-whisper, 문장 해석은 Qwen3로 구현한다. 음성 처리부는 Python과 FastAPI를 사용한다.
 - 프론트엔드는 음성 입력 및 인식·선택 결과의 확인·수정 화면을 담당한다.
 - Python 음성 처리부는 음성을 텍스트로 변환하고 문장에서 여행 선택 조건을 해석한다.
-- Spring Boot의 `VoiceController`·`VoiceService`는 해석 결과를 실제 상품·옵션·등록 일정과 대조하고 화면에 보여줄 선택 결과를 반환한다.
+- Spring Boot의 `VoicePreviewController`·`VoicePreviewService`는 해석 결과를 실제 상품·옵션·등록 일정과 대조하고 화면에 보여줄 선택 결과를 반환한다.
 
 ## 반드시 지킬 규칙
 

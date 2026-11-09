@@ -1,0 +1,48 @@
+package com.misterworld.server.domain;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import jakarta.persistence.*;
+
+import java.time.*;
+
+@Entity
+@Table(name = "여행옵션")
+@Getter
+public class TravelOption {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "여행옵션_ID", nullable = false)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "여행상품_ID", nullable = false)
+    @Setter
+    private TravelProduct travelProduct;
+
+    @Column(name = "옵션종류", nullable = false, length = 255)
+    @Setter
+    private String type;
+
+    @Column(name = "옵션명", nullable = false, length = 255)
+    @Setter
+    private String name;
+
+    @Column(name = "옵션등급", nullable = false, length = 255)
+    @Setter
+    private String grade;
+
+    @Column(name = "추가금액", nullable = false)
+    @Setter
+    private Integer additionalPrice;
+
+    @Column(name = "옵션설명", nullable = true, length = 2000)
+    @Setter
+    private String description;
+
+    @Column(name = "기본등급", nullable = true, length = 255)
+    @Setter
+    private String defaultForGrade;
+
+}

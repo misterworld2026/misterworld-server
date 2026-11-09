@@ -12,7 +12,7 @@ cd voice-service
 .venv/bin/python -m evaluation.integration_smoke
 ```
 
-`evaluate`는 실제 Qwen3 모델을 사용하므로 첫 실행 때 모델 다운로드·로딩이 필요하다. `--output /path/report.json`으로 케이스별 결과를 저장할 수 있다. `integration_smoke`는 기존 `misterworld` DB에서 여행상품·일정·옵션만 새 임시 DB에 복사하고, 그 임시 DB의 옛 일정 상태값을 변환한 다음 Spring과 Python 서버를 띄워 공개 API를 호출한다. 테스트가 끝나면 서버와 임시 DB를 정리한다. 정상 전사까지 확인할 WAV 파일이 있으면 `--audio /absolute/path/sample.wav`를 추가한다.
+`evaluate`는 실제 Qwen3 모델을 사용하므로 첫 실행 때 모델 다운로드·로딩이 필요하다. `--output /path/report.json`으로 케이스별 결과를 저장할 수 있다. `integration_smoke`는 새 임시 MySQL DB에 `main`의 Flyway 마이그레이션을 적용하고 테스트 상품·일정·옵션 및 회원을 생성한 뒤 Spring과 Python 서버의 공개 API를 호출한다. 테스트가 끝나면 서버와 임시 DB를 정리한다. DB 접속값은 `VOICE_TEST_DB_USER`·`VOICE_TEST_DB_PASSWORD` 또는 `DB_USERNAME`·`DB_PASSWORD`로 지정한다. 정상 전사까지 확인할 WAV 파일이 있으면 `--audio /absolute/path/sample.wav`를 추가한다.
 
 ## 판정 기준
 

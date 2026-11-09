@@ -1,14 +1,16 @@
 package com.misterworld.server.service;
 
 import com.misterworld.server.dto.voice.VoiceDtos.*;
-import com.misterworld.server.entity.TravelOption;
-import com.misterworld.server.entity.TravelProduct;
-import com.misterworld.server.entity.TravelSchedule;
+import com.misterworld.server.domain.TravelOption;
+import com.misterworld.server.domain.TravelProduct;
+import com.misterworld.server.domain.TravelSchedule;
+import com.misterworld.server.domain.ScheduleStatus;
 import com.misterworld.server.repository.TravelOptionRepository;
 import com.misterworld.server.repository.TravelProductRepository;
 import com.misterworld.server.repository.TravelScheduleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,31 +27,32 @@ class VoiceServiceTest {
     private final TravelScheduleRepository schedules = mock(TravelScheduleRepository.class);
     private final TravelOptionRepository options = mock(TravelOptionRepository.class);
     private final VoiceProcessingClient python = mock(VoiceProcessingClient.class);
-    private final VoiceService service = new VoiceService(products, schedules, options, python);
+    private final VoicePreviewService service = new VoicePreviewService(products, schedules, options, python);
     private LocalDate departure;
 
     @BeforeEach
     void setup() {
         departure = LocalDate.now().plusDays(30);
         TravelProduct product = new TravelProduct();
-        product.setId(1L);
+        ReflectionTestUtils.setField(product, "id", 1L);
         product.setName("푸껫 허니문 5박 7일");
-        product.setTheme("HONEYMOON");
+        product.setTheme("허니문");
         product.setGrandPrice(2190000);
         product.setPremiumPrice(2790000);
 
         TravelSchedule schedule = new TravelSchedule();
-        schedule.setTravelScheduleId(10L);
+        ReflectionTestUtils.setField(schedule, "travelScheduleId", 10L);
         schedule.setTravelProduct(product);
         schedule.setDepartureDate(departure);
-        schedule.setStatus(TravelSchedule.Status.RECRUITING_SCHEDULE);
+        schedule.setStatus(ScheduleStatus.RECRUITING_SCHEDULE);
         schedule.setApplicantCount(0);
 
         TravelOption hotel = new TravelOption();
-        hotel.setId(20L);
+        ReflectionTestUtils.setField(hotel, "id", 20L);
         hotel.setTravelProduct(product);
         hotel.setType("HOTEL");
         hotel.setName("오션뷰 객실 업그레이드");
+        hotel.setGrade("GRAND");
 
         when(products.findAll()).thenReturn(List.of(product));
         when(schedules.findAll()).thenReturn(List.of(schedule));
@@ -111,10 +114,10 @@ class VoiceServiceTest {
         TravelProduct product = products.findAll().getFirst();
         TravelSchedule first = schedules.findAll().getFirst();
         TravelSchedule second = new TravelSchedule();
-        second.setTravelScheduleId(11L);
+        ReflectionTestUtils.setField(second, "travelScheduleId", 11L);
         second.setTravelProduct(product);
         second.setDepartureDate(departure.plusYears(1));
-        second.setStatus(TravelSchedule.Status.RECRUITING_SCHEDULE);
+        second.setStatus(ScheduleStatus.RECRUITING_SCHEDULE);
         second.setApplicantCount(0);
         when(schedules.findAll()).thenReturn(List.of(first, second));
         when(python.interpret(any())).thenReturn(new InternalResponse(new InterpretedFields(

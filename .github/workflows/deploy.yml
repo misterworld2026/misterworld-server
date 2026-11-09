@@ -1,0 +1,33 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+concurrency:
+  group: ec2-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: EC2 SSH 접속 및 자동 배포 실행
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -eu
+            cd ~/misterworld-server
+            git pull --ff-only origin main
+            # Build failure leaves the existing application running.
+            docker compose build backend
+            # Preserve an existing database container and its published ports.
+            docker compose up -d --no-recreate mysql-db
+            # Replace only the application after a successful image build.
+            docker compose up -d --no-deps --no-build backend
+            docker compose ps

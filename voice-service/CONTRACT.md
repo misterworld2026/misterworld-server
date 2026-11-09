@@ -123,13 +123,13 @@ Python의 `value`는 고객이 말한 표현 또는 정규화한 조건 문자�
   },
   "candidates": {
     "products": [
-      {"id": 1, "name": "푸껫 허니문 5박 7일", "theme": "HONEYMOON", "availableGrades": ["GRAND", "PREMIUM"]}
+      {"id": 1, "name": "푸껫 허니문 5박 7일", "theme": "허니문", "availableGrades": ["GRAND", "PREMIUM"]}
     ],
     "schedules": [
       {"id": 10, "productId": 1, "departureDate": "2027-03-01"}
     ],
     "options": [
-      {"id": 20, "productId": 1, "type": "HOTEL", "name": "오션뷰 객실 업그레이드", "grade": null}
+      {"id": 20, "productId": 1, "type": "HOTEL", "name": "오션뷰 객실 업그레이드", "grade": "GRAND"}
     ]
   }
 }
@@ -157,7 +157,7 @@ Spring은 Python 응답의 필드와 상태값을 검증하고, 실제 데이터
 
 ## 6. 오류 계약
 
-공개 API 오류는 프로젝트의 기존 오류 형식 `{"success": false, "code": 400, "message": "..."}`을 따른다.
+공개 API 오류는 `main`의 `ResultDto` 형식 `{"success": false, "message": "...", "status": 400, "code": "INVALID_REQUEST"}`을 따른다.
 
 | 상황 | HTTP 상태 | 화면 처리 |
 | --- | --- | --- |

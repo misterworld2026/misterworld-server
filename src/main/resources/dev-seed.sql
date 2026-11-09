@@ -6,25 +6,25 @@
 START TRANSACTION;
 
 INSERT INTO `여행상품` (`상품명`, `테마`, `상품설명`, `클래식_가격`, `그랜드_가격`, `프리미엄_가격`)
-SELECT '푸껫 허니문 5박 7일', 'HONEYMOON',
+SELECT '푸껫 허니문 5박 7일', '허니문',
        '인천 출발 푸껫 허니문. 왕복 항공, 숙박, 공항 이동, 기본 식사와 현지 투어 포함. 클래식 등급은 제공하지 않음.',
        NULL, 2190000, 2790000
 WHERE NOT EXISTS (SELECT 1 FROM `여행상품` WHERE `상품명` = '푸껫 허니문 5박 7일');
 
 INSERT INTO `여행상품` (`상품명`, `테마`, `상품설명`, `클래식_가격`, `그랜드_가격`, `프리미엄_가격`)
-SELECT '다낭 효도·휴양 3박 5일', 'FILIAL',
+SELECT '다낭 효도·휴양 3박 5일', '효도',
        '인천 출발 다낭·호이안 효도 여행. 왕복 항공, 숙박, 공항 이동, 기본 식사와 관광 포함. 클래식 등급은 제공하지 않음.',
        NULL, 1290000, 1790000
 WHERE NOT EXISTS (SELECT 1 FROM `여행상품` WHERE `상품명` = '다낭 효도·휴양 3박 5일');
 
 INSERT INTO `여행상품` (`상품명`, `테마`, `상품설명`, `클래식_가격`, `그랜드_가격`, `프리미엄_가격`)
-SELECT '홋카이도 골프 3박 4일', 'GOLF',
+SELECT '홋카이도 골프 3박 4일', '골프',
        '인천 출발 홋카이도 골프 여행. 왕복 항공, 숙박, 공항 이동, 기본 식사와 36홀 라운드 포함.',
        1290000, 1790000, 2290000
 WHERE NOT EXISTS (SELECT 1 FROM `여행상품` WHERE `상품명` = '홋카이도 골프 3박 4일');
 
 INSERT INTO `여행상품` (`상품명`, `테마`, `상품설명`, `클래식_가격`, `그랜드_가격`, `프리미엄_가격`)
-SELECT '호도협 트레킹 4박 5일', 'TREKKING',
+SELECT '호도협 트레킹 4박 5일', '트레킹',
        '인천 출발 중국 호도협 트레킹. 왕복 항공, 숙박, 현지 이동, 기본 식사와 현지 가이드 포함.',
        1590000, 1990000, 2390000
 WHERE NOT EXISTS (SELECT 1 FROM `여행상품` WHERE `상품명` = '호도협 트레킹 4박 5일');
@@ -50,10 +50,12 @@ WHERE NOT EXISTS (
       AND existing.`종료일` = s.arrival_date
 );
 
--- 옵션등급이 NULL인 예시는 해당 상품에서 판매하는 모든 등급에서 선택 가능하다는 개발용 규칙이다.
+-- 현재 스키마에서 옵션등급은 필수다. 허니문·효도·트레킹은 GRAND, 골프는 CLASSIC 예시를 넣는다.
 -- 추가금액은 기본 상품 가격에 포함되지 않은 선택 사항이다.
 INSERT INTO `여행옵션` (`여행상품_ID`, `옵션종류`, `옵션명`, `옵션등급`, `추가금액`, `옵션설명`)
-SELECT p.`여행상품_ID`, o.option_type, o.option_name, NULL, o.additional_price, o.description
+SELECT p.`여행상품_ID`, o.option_type, o.option_name,
+       CASE WHEN p.`테마` = '골프' THEN 'CLASSIC' ELSE 'GRAND' END,
+       o.additional_price, o.description
 FROM `여행상품` AS p
 JOIN (
     SELECT '푸껫 허니문 5박 7일' AS product_name, 'HOTEL' AS option_type, '오션뷰 객실 업그레이드' AS option_name, 180000 AS additional_price, '전체 숙박 기간 기준 1인 추가 금액' AS description
