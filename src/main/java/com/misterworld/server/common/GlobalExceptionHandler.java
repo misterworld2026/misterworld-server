@@ -1,5 +1,6 @@
 package com.misterworld.server.common;
 
+import com.misterworld.server.exception.VoiceProcessingException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,6 +11,19 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(VoiceProcessingException.class)
+    public ResponseEntity<ResultDto> voice(VoiceProcessingException error) {
+        int status = error.getStatus().value();
+        return ResponseEntity.status(status)
+            .body(new ResultDto(false, error.getMessage(), status, "VOICE_PROCESSING_ERROR"));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ResultDto> largeAudio(Exception error) {
+        return ResponseEntity.status(413)
+            .body(new ResultDto(false, "음성 파일은 10 MiB 이하여야 합니다.", 413, "AUDIO_TOO_LARGE"));
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ResultDto> business(BusinessException error) {
         return ResponseEntity.status(error.getStatus())

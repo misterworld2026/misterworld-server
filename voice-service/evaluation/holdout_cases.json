@@ -1,0 +1,14 @@
+[
+  {"id":"holdout_honeymoon","text":"푸껫 허니문으로 4월 5일에 출발하고 프리미엄으로 할게요","resolved":{"tour":"푸껫 허니문","schedule":"4월 5일","grade":"PREMIUM"}},
+  {"id":"holdout_filial","text":"다낭 효도 여행 그랜드, 3월 15일 출발이요","resolved":{"tour":["다낭 효도 여행","다낭 효도"],"schedule":"3월 15일","grade":"GRAND"}},
+  {"id":"holdout_golf","text":"홋카이도 골프 투어 4월 26일 클래식으로","resolved":{"tour":["홋카이도 골프 투어","홋카이도 골프","골프 투어"],"schedule":"4월 26일","grade":"CLASSIC"}},
+  {"id":"holdout_trekking","text":"호도협 트레킹 여행 5월 3일 그랜드로","resolved":{"tour":["호도협 트레킹 여행","호도협 트레킹"],"schedule":"5월 3일","grade":"GRAND"}},
+  {"id":"holdout_hotel","text":"오션뷰 객실 업그레이드 부탁해","resolved":{"hotel":"오션뷰 객실 업그레이드"}},
+  {"id":"holdout_transport","text":"전용 차량 이동으로 바꿔줘","resolved":{"transport":"전용 차량 이동"}},
+  {"id":"holdout_meal","text":"해산물 특식 한 번 추가해줘","resolved":{"meal":"해산물 특식"}},
+  {"id":"holdout_date","text":"4월 19일 일정으로 바꿔줘","resolved":{"schedule":"4월 19일"}},
+  {"id":"holdout_vague_date","text":"일정은 다음 달 아무 때나 해줘","unresolved":["schedule"]},
+  {"id":"holdout_spa","text":"스파를 추가해줘","extras":[["스파","스파를 추가","스파 추가"]]},
+  {"id":"holdout_club","text":"골프 클럽 렌탈도 넣어줘","extras":["골프 클럽 렌탈"]},
+  {"id":"holdout_vague_hotel","text":"호텔은 좋은 곳이면 돼","unresolved":["hotel"]}
+]

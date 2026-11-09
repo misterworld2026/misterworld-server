@@ -37,8 +37,9 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/admin/auth/login",
+                .requestMatchers("/", "/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/admin/auth/login",
                     "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/voice/**").hasRole("MEMBER")
                 .requestMatchers("/api/admin/**").hasRole("STAFF")
                 .anyRequest().authenticated())
             .exceptionHandling(errors -> errors
