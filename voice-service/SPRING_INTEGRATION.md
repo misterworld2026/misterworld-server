@@ -2,16 +2,16 @@
 
 Spring 담당자가 음성 선택 기능을 구현할 때 읽는 문서다. 요청·응답의 정확한 경로와 JSON 예시는 [CONTRACT.md](CONTRACT.md)를 기준으로 한다. 이 문서는 **Spring 쪽 책임, 구현 순서, 검증 규칙, 현재 코드의 통합 전제**를 정리한다.
 
-## 현재 상태와 선행 작업
+## 현재 상태와 실행 전 확인
 
-- `feat/voice-selection`은 오래된 `main`에서 분기했다. 인증·엔티티·상품 관련 코드는 다른 기능 브랜치에 있다. Spring 구현 전에 팀의 최신 공통 코드를 합쳐야 한다.
-- `feat/travel-product-catalog` 기준 `VoiceController`와 `VoiceService`는 빈 클래스이고, `TravelScheduleRepository`·`TravelOptionRepository`에는 음성 후보 조회 메서드가 없다. 해당 코드가 현재 브랜치에 이미 있다고 가정하지 않는다.
-- Python FastAPI의 `GET /health`, `/internal/v1/transcribe`, `/internal/v1/interpret`가 구현되어 있다. 해석 모델 첫 로딩과 추론 시간이 길 수 있으므로 Spring 클라이언트의 읽기 시간 제한을 실제 실행 환경에서 확인한다.
+- `feat/voice-selection`에는 상품·인증 코드와 Spring 음성 연동 코드가 포함되어 있다.
+- `VoiceController`, `VoiceService`, `VoiceProcessingClient`가 계약의 공개 API 두 개를 제공한다. Python FastAPI의 `GET /health`, `/internal/v1/transcribe`, `/internal/v1/interpret`가 구현되어 있다.
+- Spring은 `VOICE_PYTHON_BASE_URL`(기본 `http://127.0.0.1:8001`), `VOICE_PYTHON_CONNECT_TIMEOUT_MS`(기본 3000), `VOICE_PYTHON_READ_TIMEOUT_MS`(기본 180000)로 Python 연결을 설정한다. 모델 첫 로딩·추론 시간을 고려해 실제 환경에서 값을 조정한다.
 - `TravelProduct`의 ID는 `id`, `TravelSchedule`의 ID는 `travelScheduleId`, 종료일 필드명은 `arrivalDate`, `TravelOption`의 ID는 `id`다. API 계약의 `id`·`departureDate`로 변환할 때 필드명을 확인한다.
-- 현재 개발용 `dev-seed.sql`의 일정 상태 문자열은 `RECRUITING`이지만, 최신 `TravelSchedule.Status`는 `RECRUITING_SCHEDULE`이다. 음성 기능을 DB와 통합하기 전에 시드 데이터와 enum 값을 맞춰야 한다. 이 문서 작업에서는 DB·시드 파일을 변경하지 않는다.
+- 개발용 `dev-seed.sql`의 신규 일정 상태는 `RECRUITING_SCHEDULE`로 맞췄다. 기존 DB에 `RECRUITING` 값이 이미 있으면 다음 SQL을 실행해 갱신해야 한다: `UPDATE 여행일정 SET 여행상태 = 'RECRUITING_SCHEDULE' WHERE 여행상태 = 'RECRUITING';`
 - 개발용 `dev-seed.sql` 주석은 옵션의 `grade = null`을 해당 상품의 모든 판매 등급에서 사용 가능한 값으로 설명한다. 실제 상품·옵션 검증 규칙에서도 이 의미를 사용할지 담당자와 맞춘 뒤 동일하게 적용한다.
 
-## Spring에서 구현할 구성요소
+## Spring 구성요소
 
 | 구성요소 | 해야 할 일 |
 | --- | --- |
