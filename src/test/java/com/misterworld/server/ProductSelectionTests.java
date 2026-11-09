@@ -1,10 +1,14 @@
 package com.misterworld.server;
 
 import com.misterworld.server.common.BusinessException;
-import com.misterworld.server.domain.*;
-import com.misterworld.server.dto.*;
-import com.misterworld.server.repository.*;
-import com.misterworld.server.service.TravelProductService;
+import com.misterworld.server.travelproduct.dto.TravelOptionRequest;
+import com.misterworld.server.travelproduct.dto.TravelProductRequest;
+import com.misterworld.server.travelproduct.entity.TravelOption;
+import com.misterworld.server.travelproduct.entity.TravelProduct;
+import com.misterworld.server.travelproduct.repository.TravelOptionRepository;
+import com.misterworld.server.travelproduct.repository.TravelProductRepository;
+import com.misterworld.server.travelproduct.service.TravelProductService;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -38,10 +42,14 @@ class ProductSelectionTests {
         var options = mock(TravelOptionRepository.class);
         var product = new TravelProduct();
         product.setTheme("골프");
+        product.setClassicPrice(100);
+        product.setGrandPrice(200);
+        product.setPremiumPrice(300);
         var id = TravelProduct.class.getDeclaredField("id");
         id.setAccessible(true);
         id.set(product, 1L);
         when(products.findById(1L)).thenReturn(Optional.of(product));
+        when(products.existsById(1L)).thenReturn(true);
         var service = new TravelProductService(products, options);
         assertThatThrownBy(() -> service.validateSelection(1L, "CLASSIC", List.of(1L, 1L))).isInstanceOf(
             BusinessException.class);
@@ -66,18 +74,35 @@ class ProductSelectionTests {
         var options = mock(TravelOptionRepository.class);
         var product = new TravelProduct();
         product.setTheme("골프");
+        product.setClassicPrice(100);
+        product.setGrandPrice(200);
+        product.setPremiumPrice(300);
         var id = TravelProduct.class.getDeclaredField("id");
         id.setAccessible(true);
         id.set(product, 1L);
         when(products.findById(1L)).thenReturn(Optional.of(product));
+        when(products.existsById(1L)).thenReturn(true);
         var selected = new ArrayList<TravelOption>();
         for (String type : List.of("HOTEL", "TRANSPORT", "MEAL")) {
             var option = new TravelOption();
             option.setTravelProduct(product);
             option.setType(type);
             option.setGrade(type.equals("MEAL") ? "PREMIUM" : "CLASSIC");
+            option.setDefaultForGrade("CLASSIC");
+            option.setAllowedTourGrades("CLASSIC,GRAND,PREMIUM");
+            var optionId = TravelOption.class.getDeclaredField("id");
+            optionId.setAccessible(true);
+            optionId.set(option, (long) selected.size() + 1);
             selected.add(option);
         }
+        var defaultMeal = new TravelOption();
+        defaultMeal.setTravelProduct(product);
+        defaultMeal.setType("MEAL"); defaultMeal.setGrade("CLASSIC"); defaultMeal.setDefaultForGrade("CLASSIC");
+        var defaultId = TravelOption.class.getDeclaredField("id");
+        defaultId.setAccessible(true); defaultId.set(defaultMeal, 4L);
+        selected.get(2).setDefaultForGrade(null);
+        when(options.findByTravelProductId(1L)).thenReturn(
+            List.of(selected.get(0), selected.get(1), defaultMeal, selected.get(2)));
         when(options.findAllById(List.of(1L, 2L, 3L))).thenReturn(selected);
         assertThat(
             new TravelProductService(products, options).validateSelection(1L, "CLASSIC", List.of(1L, 2L, 3L))).hasSize(

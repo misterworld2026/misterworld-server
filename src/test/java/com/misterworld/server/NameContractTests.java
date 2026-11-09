@@ -1,8 +1,22 @@
 package com.misterworld.server;
 
-import com.misterworld.server.domain.*;
-import com.misterworld.server.service.*;
-import com.misterworld.server.dto.ItemInventoryRequest;
+import com.misterworld.server.inventory.dto.ItemInventoryRequest;
+import com.misterworld.server.inventory.entity.InventoryStatus;
+import com.misterworld.server.inventory.entity.ItemInventory;
+import com.misterworld.server.inventory.service.ItemInventoryService;
+import com.misterworld.server.member.entity.Member;
+import com.misterworld.server.member.entity.Role;
+import com.misterworld.server.notification.entity.NotificationStatus;
+import com.misterworld.server.notification.entity.SmsNotification;
+import com.misterworld.server.travelapplication.entity.ParticipantType;
+import com.misterworld.server.travelapplication.entity.TravelApplication;
+import com.misterworld.server.travelapplication.entity.TravelParticipant;
+import com.misterworld.server.travelapplication.service.TravelApplicationService;
+import com.misterworld.server.travelproduct.entity.TravelOption;
+import com.misterworld.server.travelproduct.entity.TravelProduct;
+import com.misterworld.server.travelschedule.entity.ScheduleStatus;
+import com.misterworld.server.travelschedule.entity.TravelSchedule;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.*;

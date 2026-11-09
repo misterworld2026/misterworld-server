@@ -22,3 +22,15 @@ server:
     include-stacktrace: never
 app:
   jwt-secret: ${JWT_SECRET:}
+
+  sms:
+    provider: ${SMS_PROVIDER:unavailable}
+    dispatch-enabled: ${SMS_DISPATCH_ENABLED:false}
+
+  booking:
+    # User-confirmed policy, 2026-11-04. All amounts are per person in integer KRW.
+    pricing-unit: PER_PERSON_SURCHARGE
+    discount-rounding: HALF_UP
+    zone: Asia/Seoul
+    honeymoon-size: ONE_TEAM
+    cancel-after-deadline: true

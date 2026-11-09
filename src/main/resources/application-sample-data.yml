@@ -1,0 +1,4 @@
+# Opt-in demonstration only. Actual SMS dispatch is disabled for these sample bookings.
+app:
+  sms:
+    dispatch-enabled: false

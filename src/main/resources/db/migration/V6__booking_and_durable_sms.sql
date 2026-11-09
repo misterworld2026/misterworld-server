@@ -1,0 +1,12 @@
+ALTER TABLE `여행신청` ADD COLUMN `요청키` VARCHAR(64);
+ALTER TABLE `여행신청` ADD COLUMN `요청해시` VARCHAR(64);
+ALTER TABLE `여행신청` ADD COLUMN `취소일시` DATETIME(6);
+CREATE UNIQUE INDEX uk_application_member_request ON `여행신청` (`회원_ID`, `요청키`);
+ALTER TABLE `여행일정` ADD COLUMN `취소일시` DATETIME(6);
+ALTER TABLE `문자알림` ADD COLUMN `생성일시` DATETIME(6);
+ALTER TABLE `문자알림` ADD COLUMN `다음시도일시` DATETIME(6);
+ALTER TABLE `문자알림` ADD COLUMN `잠금만료일시` DATETIME(6);
+ALTER TABLE `문자알림` ADD COLUMN `처리토큰` VARCHAR(36);
+ALTER TABLE `문자알림` ADD COLUMN `시도횟수` INT NOT NULL DEFAULT 0;
+ALTER TABLE `문자알림` ADD COLUMN `마지막오류` VARCHAR(40);
+CREATE INDEX idx_notification_delivery ON `문자알림` (`발송상태`, `다음시도일시`, `잠금만료일시`);

@@ -10,6 +10,12 @@
 .env
 .env.*
 !.env.example
+
+# Local Docker configuration
+/docker-compose.yml
+/Dockerfile
+/.dockerignore
+
 *.pem
 *.key
 *.p12
