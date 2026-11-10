@@ -24,11 +24,9 @@ jobs:
             set -eu
             cd ~/misterworld-server
             git pull --ff-only origin main
-            # Build both images before replacing either running application.
-            docker compose build backend voice-ai
+            # Voice inference runs on the developer's machine for the demo.
+            docker compose build backend
             # Preserve an existing database container and its published ports.
             docker compose up -d --no-recreate mysql-db
-            # Start the private voice service before updating Spring.
-            docker compose up -d --wait --wait-timeout 120 --no-deps --no-build voice-ai
             docker compose up -d --no-deps --no-build backend
             docker compose ps
