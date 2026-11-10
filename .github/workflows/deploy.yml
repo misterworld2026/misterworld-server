@@ -24,10 +24,11 @@ jobs:
             set -eu
             cd ~/misterworld-server
             git pull --ff-only origin main
-            # Build failure leaves the existing application running.
-            docker compose build backend
+            # Build both images before replacing either running application.
+            docker compose build backend voice-ai
             # Preserve an existing database container and its published ports.
             docker compose up -d --no-recreate mysql-db
-            # Replace only the application after a successful image build.
+            # Start the private voice service before updating Spring.
+            docker compose up -d --wait --wait-timeout 120 --no-deps --no-build voice-ai
             docker compose up -d --no-deps --no-build backend
             docker compose ps

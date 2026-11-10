@@ -28,13 +28,35 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      VOICE_PYTHON_BASE_URL: http://voice-ai:8001
+      VOICE_PYTHON_READ_TIMEOUT_MS: ${VOICE_PYTHON_READ_TIMEOUT_MS:-180000}
     ports:
       - "8080:8080"
     networks:
       - app-network
 
+  voice-ai:
+    build: ./voice-service
+    container_name: misterworld-voice-ai
+    restart: always
+    environment:
+      VOICE_STT_DEVICE: cpu
+      VOICE_STT_COMPUTE_TYPE: int8
+      VOICE_QWEN_DEVICE: cpu
+    volumes:
+      - voice_models:/app/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app-network
+
 volumes:
   mysql_data:
+  voice_models:
 
 networks:
   app-network:

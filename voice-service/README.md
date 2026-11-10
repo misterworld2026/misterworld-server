@@ -35,6 +35,8 @@
 
 API 경로, 요청·응답 JSON, 상태값, 오류 처리는 [CONTRACT.md](CONTRACT.md)를 따른다. Spring 백엔드 담당자는 [SPRING_INTEGRATION.md](SPRING_INTEGRATION.md)의 구현 순서와 검증 규칙도 확인한다. 설계 산출물 4.3의 `interpretVoice(text, context)`는 전사한 문장을 고객이 확인한 뒤 호출하는 해석 API로 연결한다.
 
+EC2 Docker Compose 배포 설정과 운영 확인 항목은 [DEPLOYMENT.md](DEPLOYMENT.md)를 참고한다.
+
 음성 명령 성공률 측정용 발화 목록과 판정 기준은 통합 검증 단계에서 작성한다. 계획서의 개발 목표치는 **80%**다.
 
 ## 로컬 실행
