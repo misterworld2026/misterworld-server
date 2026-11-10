@@ -1,5 +1,8 @@
 package com.misterworld.server.domain;
 
+import com.misterworld.server.domain.TravelProduct;
+
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -38,4 +41,5 @@ public class TravelSchedule {
     @Setter
     private Integer applicantCount;
 
+    @Column(name="취소일시") @Setter private LocalDateTime cancelledAt;
 }

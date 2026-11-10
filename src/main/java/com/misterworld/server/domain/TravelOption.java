@@ -45,4 +45,13 @@ public class TravelOption {
     @Setter
     private String defaultForGrade;
 
+    // Additional design: explicit product/option policy, comma-separated tour grades.
+    @Column(name = "허용투어등급", length = 255)
+    @Setter
+    private String allowedTourGrades;
+
+
+    // Additional explicit metadata; never infer bundled champagne from a display name.
+    @Column(name="부가혜택코드", length=40) @Setter private String benefitCode;
+
 }

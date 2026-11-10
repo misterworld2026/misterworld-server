@@ -1,6 +1,7 @@
 package com.misterworld.server.repository;
 
-import com.misterworld.server.domain.*;
+import com.misterworld.server.domain.TravelOption;
+
 
 import java.util.*;
 

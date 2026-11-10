@@ -1,10 +1,11 @@
 package com.misterworld.server;
 
-import com.misterworld.server.domain.InventoryStatus;
-import com.misterworld.server.domain.ItemInventory;
+import com.misterworld.server.inventory.entity.InventoryStatus;
+import com.misterworld.server.inventory.entity.ItemInventory;
+import com.misterworld.server.inventory.repository.ItemInventoryRepository;
 import com.misterworld.server.domain.TravelProduct;
-import com.misterworld.server.repository.ItemInventoryRepository;
 import com.misterworld.server.repository.TravelProductRepository;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("local")
+@org.springframework.test.context.TestPropertySource(properties="app.sms.dispatch-enabled=false")
 @Transactional
 class InventoryMigrationTests {
     @Autowired

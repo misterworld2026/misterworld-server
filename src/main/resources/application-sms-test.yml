@@ -1,0 +1,14 @@
+# Run with local,sms-test to use the in-memory DB and send the test notification.
+spring:
+  config:
+    activate:
+      on-profile: "local & sms-test"
+    import: "optional:file:.env[.properties]"
+  datasource:
+    url: jdbc:h2:mem:sms-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=FALSE
+app:
+  sample:
+    sms-test-phone: ${SMS_TEST_PHONE}
+  sms:
+    provider: solapi
+    dispatch-enabled: true

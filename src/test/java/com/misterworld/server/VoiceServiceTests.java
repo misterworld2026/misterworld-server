@@ -1,8 +1,9 @@
 package com.misterworld.server;
 
-import com.misterworld.server.service.VoiceService;
-import com.misterworld.server.integration.VoiceProcessingClient;
-import com.misterworld.server.integration.VoiceProcessingClient.InferenceState;
+import com.misterworld.server.voice.integration.VoiceProcessingClient;
+import com.misterworld.server.voice.integration.VoiceProcessingClient.InferenceState;
+import com.misterworld.server.voice.service.VoiceService;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.*;

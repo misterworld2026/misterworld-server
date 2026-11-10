@@ -1,6 +1,9 @@
 package com.misterworld.server.security;
 
-import com.misterworld.server.domain.Member;
+import com.misterworld.server.common.BusinessException;
+import com.misterworld.server.member.entity.Member;
+
+
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jwt.*;
@@ -59,7 +62,7 @@ public class JwtProvider {
             Long.parseLong(c.getSubject());
             return c;
         } catch (Exception error) {
-            throw new com.misterworld.server.common.BusinessException(401, "INVALID_TOKEN", "유효한 인증 토큰이 필요합니다.");
+            throw new BusinessException(401, "INVALID_TOKEN", "유효한 인증 토큰이 필요합니다.");
         }
     }
 }
