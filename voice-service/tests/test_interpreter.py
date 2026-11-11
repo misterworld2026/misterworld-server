@@ -1,7 +1,10 @@
 import json
+import os
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from app.interpreter import parse_interpretation
+from app.interpreter import InterpretRequest, generate_interpretation, parse_interpretation
 
 
 class InterpretOutputTest(unittest.TestCase):
@@ -76,6 +79,33 @@ class InterpretOutputTest(unittest.TestCase):
         self.assertEqual(fields["hotel"], {"state": "RESOLVED", "value": "오션뷰 객실"})
         self.assertEqual(fields["meal"], {"state": "RESOLVED", "value": "해산물 특식"})
         self.assertEqual(fields["extras"], [])
+
+    def test_groq_response_uses_existing_output_parser(self) -> None:
+        raw = json.dumps({
+            "tour": "푸껫 허니문 여행",
+            "schedule": "3월 1일 출발",
+            "grade": "그랜드",
+            "hotel": "오션뷰 객실",
+            "transport": None,
+            "meal": None,
+            "extras": [],
+        }, ensure_ascii=False)
+        request = InterpretRequest(
+            text="푸껫 허니문 여행을 3월 1일 출발로 예약하고 싶어요. 그랜드 등급에 오션뷰 객실로 해주세요.",
+            context={},
+            candidates={"products": [], "schedules": [], "options": []},
+        )
+        response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=raw))])
+        with patch.dict(os.environ, {"GROQ_API_KEY": "test-key"}), \
+             patch("app.interpreter.Groq") as groq, \
+             patch("app.interpreter.get_model") as local_model:
+            groq.return_value.chat.completions.create.return_value = response
+            result = parse_interpretation(generate_interpretation(request), request.text)
+
+        local_model.assert_not_called()
+        self.assertEqual(groq.return_value.chat.completions.create.call_args.kwargs["model"], "qwen/qwen3.8-27b")
+        self.assertEqual(result.fields.grade.value, "GRAND")
+        self.assertEqual(result.fields.schedule.value, "3월 1일")
 
 
 if __name__ == "__main__":

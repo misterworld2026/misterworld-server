@@ -77,8 +77,11 @@ def wait_for(port: int, process: subprocess.Popen, seconds: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verify Spring and Python voice APIs with an isolated local DB")
-    parser.add_argument("--audio", type=Path, help="Optional real WAV recording to test successful transcription")
+    parser.add_argument("--audio", type=Path, help="Optional WAV recording to test transcription followed by interpretation")
+    parser.add_argument("--repeats", type=int, default=1, help="Number of full audio-to-preview runs (default: 1)")
     args = parser.parse_args()
+    if args.repeats < 1:
+        parser.error("--repeats must be at least 1")
     servers = []
     created = False
     with tempfile.TemporaryDirectory(prefix="misterworld_voice_smoke_") as temp:
@@ -126,6 +129,32 @@ def main() -> None:
             request = {"text": "푸껫 허니문 3월 1일 출발로 그랜드 등급에 오션뷰 객실로 해줘",
                        "context": {"productId": None, "scheduleId": None, "grade": None,
                                    "optionIds": {"HOTEL": None, "TRANSPORT": None, "MEAL": None, "EXTRA": []}}}
+            if args.audio:
+                audio_bytes = args.audio.read_bytes()
+                body = (b"--voice-check\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"sample.wav\"\r\n"
+                        b"Content-Type: audio/wav\r\n\r\n" + audio_bytes + b"\r\n--voice-check--\r\n")
+                matched_runs = 0
+                for run in range(1, args.repeats + 1):
+                    started = time.perf_counter()
+                    status, transcript = http("/api/v1/voice/transcriptions", multipart=body, token=member_token)
+                    transcription_seconds = time.perf_counter() - started
+                    assert status == 200 and transcript.get("text"), (status, transcript)
+                    status, preview = http("/api/v1/voice/interpretations",
+                                           payload={**request, "text": transcript["text"]}, token=member_token)
+                    total_seconds = time.perf_counter() - started
+                    assert status == 200, (status, preview)
+                    matched = all(preview["fields"][name]["status"] == "MATCHED"
+                                  for name in ("tour", "schedule", "grade", "hotel"))
+                    matched_runs += matched
+                    print(json.dumps({"run": run, "transcribedText": transcript["text"],
+                                      "transcriptionSeconds": round(transcription_seconds, 2),
+                                      "interpretationSeconds": round(total_seconds - transcription_seconds, 2),
+                                      "totalSeconds": round(total_seconds, 2),
+                                      "allRequiredFieldsMatched": matched,
+                                      "fields": preview["fields"], "selection": preview["selection"],
+                                      "nextAction": preview["nextAction"]}, ensure_ascii=False), flush=True)
+                print(f"Audio-to-preview requests completed; matched {matched_runs}/{args.repeats}", flush=True)
+
             status, response = http("/api/v1/voice/interpretations", payload=request, token=member_token)
             assert status == 200, (status, response)
             assert response["fields"]["tour"]["status"] == "MATCHED", response
@@ -133,7 +162,7 @@ def main() -> None:
             assert response["fields"]["grade"]["status"] == "MATCHED", response
             assert response["fields"]["hotel"]["status"] == "MATCHED", response
             assert response["nextAction"] == "REVIEW" and response["failureCount"] == 0, response
-            print("PASS Spring -> Python -> catalog interpretation", flush=True)
+            print("PASS confirmed or corrected text -> catalog interpretation", flush=True)
 
             bad = {**request, "context": {**request["context"], "productId": response["selection"]["productId"],
                                                "scheduleId": 999999999}}
@@ -154,14 +183,6 @@ def main() -> None:
             status, _ = http("/api/v1/voice/transcriptions", multipart=invalid_audio, token=member_token)
             assert status == 415, status
             print("PASS invalid audio rejected through both servers", flush=True)
-
-            if args.audio:
-                audio_bytes = args.audio.read_bytes()
-                body = (b"--voice-check\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"sample.wav\"\r\n"
-                        b"Content-Type: audio/wav\r\n\r\n" + audio_bytes + b"\r\n--voice-check--\r\n")
-                status, transcript = http("/api/v1/voice/transcriptions", multipart=body, token=member_token)
-                assert status == 200 and transcript.get("text"), (status, transcript)
-                print("PASS successful transcription through both servers", flush=True)
 
             after = sql(f"SELECT COUNT(*) FROM `{DB}`.`여행신청`")
             assert before == after, (before, after)

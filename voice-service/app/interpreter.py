@@ -8,6 +8,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Literal
 
+from groq import Groq
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -166,12 +167,23 @@ def candidate_hints(candidates: dict[str, Any]) -> str:
 
 
 def generate_interpretation(request: InterpretRequest) -> str:
-    model, tokenizer, device = get_model()
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT + candidate_hints(request.candidates)},
         *EXAMPLE_MESSAGES,
         {"role": "user", "content": request.text},
     ]
+    if os.getenv("GROQ_API_KEY"):
+        response = Groq(timeout=30.0).chat.completions.create(
+            model=os.getenv("VOICE_GROQ_MODEL", "qwen/qwen3.8-27b"),
+            messages=messages,
+            reasoning_effort="none",
+            response_format={"type": "json_object"},
+            max_completion_tokens=180,
+            temperature=0,
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    model, tokenizer, device = get_model()
     prompt = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
@@ -277,11 +289,11 @@ def interpret_text(request: InterpretRequest) -> InterpretationResult:
     try:
         raw = generate_interpretation(request)
     except Exception as exc:
-        logger.exception("Qwen3 interpretation failed")
+        logger.exception("Voice interpretation failed")
         raise InterpretationError(503, "INTERPRETATION_FAILED", "Interpretation failed.") from exc
 
     try:
         return parse_interpretation(raw, request.text)
     except Exception as exc:
-        logger.warning("Qwen3 returned an invalid interpretation")
+        logger.warning("Voice model returned an invalid interpretation")
         raise InterpretationError(502, "INVALID_MODEL_OUTPUT", "Invalid interpretation result.") from exc

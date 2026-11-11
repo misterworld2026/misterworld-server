@@ -24,10 +24,9 @@ jobs:
             set -eu
             cd ~/misterworld-server
             git pull --ff-only origin main
-            # Build failure leaves the existing application running.
+            # Voice inference runs on the developer's machine for the demo.
             docker compose build backend
             # Preserve an existing database container and its published ports.
             docker compose up -d --no-recreate mysql-db
-            # Replace only the application after a successful image build.
             docker compose up -d --no-deps --no-build backend
             docker compose ps
