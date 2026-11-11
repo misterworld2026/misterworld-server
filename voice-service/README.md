@@ -58,7 +58,11 @@ python3.13 -m venv .venv
 curl -F "audio=@sample.wav;type=audio/wav" http://127.0.0.1:8001/internal/v1/transcribe
 ```
 
-`POST /internal/v1/interpret`는 전사하거나 고객이 수정한 문장, 현재 선택 정보, Spring이 조회한 후보를 받아 항목별 해석 결과를 반환한다. 기본 모델은 `Qwen/Qwen3-1.7B`이며 첫 요청에서 모델 파일을 내려받아 `voice-service/models/`에 저장한다. 모델 로딩과 첫 추론에 시간이 걸릴 수 있다. `VOICE_QWEN_MODEL`로 모델을, `VOICE_QWEN_DEVICE`로 실행 장치(`auto`, `cuda`, `mps`, `cpu`)를 지정할 수 있다. `auto`는 사용 가능한 GPU를 우선한다. 메모리나 처리 속도가 부족한 환경에서는 더 작은 모델을 지정할 수 있지만, 해석 품질은 별도로 확인해야 한다.
+`POST /internal/v1/interpret`는 전사하거나 고객이 수정한 문장, 현재 선택 정보, Spring이 조회한 후보를 받아 항목별 해석 결과를 반환한다. `GROQ_API_KEY`가 설정되어 있으면 Groq의 `qwen/qwen3.8-27b`를 사용한다. API 키는 환경 변수로만 전달하고 Git에 저장하지 않는다. 다른 Groq 모델을 사용하려면 `VOICE_GROQ_MODEL`을 설정한다. Groq 호출에 실패하면 해석 오류를 반환하며 로컬 모델로 자동 재시도하지 않는다.
+
+`GROQ_API_KEY`가 없으면 기존 로컬 `Qwen/Qwen3-1.7B`를 사용한다. 첫 요청에서 모델 파일을 내려받아 `voice-service/models/`에 저장하므로 모델 로딩과 첫 추론에 시간이 걸릴 수 있다. `VOICE_QWEN_MODEL`로 로컬 모델을, `VOICE_QWEN_DEVICE`로 실행 장치(`auto`, `cuda`, `mps`, `cpu`)를 지정할 수 있다. `auto`는 사용 가능한 GPU를 우선한다. 메모리나 처리 속도가 부족한 환경에서는 더 작은 모델을 지정할 수 있지만, 해석 품질은 별도로 확인해야 한다.
+
+Mac에서 Groq로 시험할 때는 음성 서버를 실행하기 전에 같은 터미널에서 `export GROQ_API_KEY="발급받은 키"`를 설정한다. 음성 서버를 재시작한 뒤 `/internal/v1/interpret`를 호출해야 Groq 사용 여부를 확인할 수 있다.
 
 ```bash
 curl -X POST http://127.0.0.1:8001/internal/v1/interpret \

@@ -6,3 +6,4 @@ faster-whisper>=1.2,<2
 av>=11,<19
 torch>=2.6,<3
 transformers>=4.51,<6
+groq
