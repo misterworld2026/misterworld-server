@@ -478,6 +478,35 @@ class BookingManagementIntegrationTests {
             .doesNotContain(first.getId(), second.getId());
     }
 
+    @Test void notificationGroupIncludesCompanionsOnceAndRetriesIndependently() throws Exception {
+        long applicationId = id(book(3, "companion-sms"));
+        var tx = new TransactionTemplate(transactionManager);
+        tx.executeWithoutResult(status -> {
+            var people = participants.findByTravelApplicationId(applicationId);
+            var companions = people.stream().filter(p -> p.getParticipantType() == ParticipantType.COMPANION).toList();
+            companions.get(0).setPhoneNumber("010-9999-8888");
+            companions.get(1).setPhoneNumber("01099998888");
+            participants.saveAll(companions);
+            var application = applications.findById(applicationId).orElseThrow();
+            sms.createNotification(application, NotificationType.SCHEDULE_CANCELLED);
+            sms.createNotification(application, NotificationType.SCHEDULE_CANCELLED);
+        });
+        var group = messages(applicationId).stream()
+            .filter(n -> n.getNotificationType() == NotificationType.SCHEDULE_CANCELLED).toList();
+        assertThat(group).extracting(SmsNotification::getRecipientNumber)
+            .containsExactlyInAnyOrder("01012345678", "01099998888");
+        provider.mode = "SUCCESS";
+        sms.retryNotification(group.get(0).getId());
+        provider.mode = "REJECTED";
+        sms.retryNotification(group.get(1).getId());
+        assertThat(notifications.findById(group.get(0).getId()).orElseThrow().getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notifications.findById(group.get(1).getId()).orElseThrow().getStatus()).isEqualTo(NotificationStatus.FAILED);
+        clock.value.set(clock.instant().plusSeconds(86401));
+        provider.mode = "SUCCESS";
+        sms.retryNotification(group.get(1).getId());
+        assertThat(notifications.findById(group.get(1).getId()).orElseThrow().getStatus()).isEqualTo(NotificationStatus.SENT);
+    }
+
     @Test void transactionFailureRollsBackApplicationParticipantsCountAndOutbox() throws Exception {
         var tx=new TransactionTemplate(transactionManager);long before=applications.count(),beforePeople=participants.count(),beforeSms=notifications.count();
         assertThatThrownBy(() -> tx.execute(status -> {

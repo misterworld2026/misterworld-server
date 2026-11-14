@@ -5,6 +5,9 @@ import com.misterworld.server.notification.integration.SmsClient;
 import com.misterworld.server.notification.repository.SmsNotificationRepository;
 import com.misterworld.server.travelapplication.entity.TravelApplication;
 import com.misterworld.server.travelapplication.repository.TravelApplicationRepository;
+import com.misterworld.server.travelapplication.repository.TravelParticipantRepository;
+import com.misterworld.server.travelapplication.entity.ParticipantType;
+import java.util.LinkedHashSet;
 
 import com.misterworld.server.notification.entity.*;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.concurrent.*;
 public class SmsNotificationService {
     private final SmsNotificationRepository notifications;
     private final TravelApplicationRepository applications;
+    private final TravelParticipantRepository participants;
     private final SmsDeliveryStore deliveryStore;
     private final SmsClient client;
     private final Clock clock;
@@ -48,15 +52,24 @@ public class SmsNotificationService {
     @Transactional(propagation=Propagation.MANDATORY)
     public void createNotification(TravelApplication application, NotificationType notificationType) {
         if(notifications.existsByTravelApplicationIdAndNotificationType(application.getId(),notificationType)) return;
-        var n=new SmsNotification(); n.setTravelApplication(application); n.setNotificationType(notificationType);
-        n.setRecipientNumber(application.getMember().getPhoneNumber());
-        n.setMessage(switch (notificationType) {
-            case APPLICATION_COMPLETED -> "신청완료";
-            case DEPARTURE_CONFIRMED -> "출발확정";
-            case SCHEDULE_CANCELLED -> "일정취소";
-        });
-        n.setStatus(NotificationStatus.PENDING); n.setCreatedAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
-        notifications.save(n);
+        var recipients = new LinkedHashSet<String>();
+        recipients.add(application.getMember().getPhoneNumber().replaceAll("[^0-9+]", ""));
+        participants.findByTravelApplicationId(application.getId()).stream()
+            .filter(p -> p.getParticipantType() == ParticipantType.COMPANION)
+            .map(p -> p.getPhoneNumber().replaceAll("[^0-9+]", ""))
+            .forEach(recipients::add);
+        // Create the entire group in this transaction; retries operate on individual records.
+        for (String recipient : recipients) {
+            var n=new SmsNotification(); n.setTravelApplication(application); n.setNotificationType(notificationType);
+            n.setRecipientNumber(recipient);
+            n.setMessage(switch (notificationType) {
+                case APPLICATION_COMPLETED -> "신청완료";
+                case DEPARTURE_CONFIRMED -> "출발확정";
+                case SCHEDULE_CANCELLED -> "일정취소";
+            });
+            n.setStatus(NotificationStatus.PENDING); n.setCreatedAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
+            notifications.save(n);
+        }
     }
     // Polling reads committed outbox records, including records left by a stopped server.
     @Scheduled(fixedDelayString="${app.sms.poll-ms:1000}")
