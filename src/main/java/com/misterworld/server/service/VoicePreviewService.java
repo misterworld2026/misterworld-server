@@ -7,6 +7,8 @@ import com.misterworld.server.exception.VoiceProcessingException;
 import com.misterworld.server.repository.TravelOptionRepository;
 import com.misterworld.server.repository.TravelProductRepository;
 import com.misterworld.server.repository.TravelScheduleRepository;
+import com.misterworld.server.travelproduct.dto.TravelOptionResponse;
+import com.misterworld.server.travelproduct.service.TravelProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,7 +22,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -97,7 +98,9 @@ public class VoicePreviewService {
     }
 
     private Candidates candidates() {
-        List<ProductCandidate> productRows = products.findAll().stream()
+        var registeredProducts = products.findAll();
+        var registeredOptions = options.findAll();
+        List<ProductCandidate> productRows = registeredProducts.stream()
                 .map(p -> new ProductCandidate(p.getId(), p.getName(), p.getTheme(), availableGrades(p)))
                 .filter(p -> !p.availableGrades().isEmpty()).toList();
         Set<Long> productIds = productRows.stream().map(ProductCandidate::id).collect(java.util.stream.Collectors.toSet());
@@ -109,10 +112,23 @@ public class VoicePreviewService {
                         || s.getStatus() == ScheduleStatus.CONFIRMED_SCHEDULE)
                 .filter(s -> s.getApplicantCount() == null || s.getApplicantCount() < capacity(s.getTravelProduct().getTheme()))
                 .map(s -> new ScheduleCandidate(s.getTravelScheduleId(), s.getTravelProduct().getId(), s.getDepartureDate())).toList();
-        List<OptionCandidate> optionRows = options.findAll().stream()
+        // Reuse booking policy, including default options and premium champagne exclusion.
+        java.util.Map<Long, List<String>> allowedGradesByOption = new java.util.HashMap<>();
+        for (var product : registeredProducts) {
+            var productOptions = registeredOptions.stream()
+                    .filter(o -> o.getTravelProduct() != null && product.getId().equals(o.getTravelProduct().getId()))
+                    .map(TravelOptionResponse::from).toList();
+            for (var configuration : TravelProductService.buildAllowedGradesAndDefaults(product, productOptions)) {
+                for (var option : configuration.allowedOptions()) {
+                    allowedGradesByOption.computeIfAbsent(option.id(), key -> new ArrayList<>()).add(configuration.grade());
+                }
+            }
+        }
+        List<OptionCandidate> optionRows = registeredOptions.stream()
                 .filter(o -> o.getTravelProduct() != null && productIds.contains(o.getTravelProduct().getId()))
                 .filter(o -> o.getType() != null && Set.of("HOTEL", "TRANSPORT", "MEAL", "EXTRA").contains(o.getType()))
-                .map(o -> new OptionCandidate(o.getId(), o.getTravelProduct().getId(), o.getType(), o.getName(), o.getGrade())).toList();
+                .map(o -> new OptionCandidate(o.getId(), o.getTravelProduct().getId(), o.getType(), o.getName(), o.getGrade(),
+                        List.copyOf(allowedGradesByOption.getOrDefault(o.getId(), List.of())))).toList();
         return new Candidates(productRows, scheduleRows, optionRows);
     }
 
@@ -249,7 +265,7 @@ public class VoicePreviewService {
     }
 
     private boolean allowsGrade(OptionCandidate option, String grade) {
-        return option.grade() == null || Objects.equals(option.grade(), grade);
+        return grade != null && option.allowedTourGrades().contains(grade);
     }
 
     private OptionIds keepAllowedOptions(OptionIds ids, Long productId, String grade, List<OptionCandidate> rows) {

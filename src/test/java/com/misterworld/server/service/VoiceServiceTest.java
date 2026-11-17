@@ -53,6 +53,7 @@ class VoiceServiceTest {
         hotel.setType("HOTEL");
         hotel.setName("오션뷰 객실 업그레이드");
         hotel.setGrade("GRAND");
+        hotel.setDefaultForGrade("GRAND");
 
         when(products.findAll()).thenReturn(List.of(product));
         when(schedules.findAll()).thenReturn(List.of(schedule));
@@ -129,6 +130,40 @@ class VoiceServiceTest {
         assertNull(result.selection().scheduleId());
         assertEquals(1, result.failureCount());
     }
+
+    @Test
+    void allowsAndPreservesExplicitlyPermittedHigherHotelForClassic() {
+        TravelProduct product = products.findAll().getFirst();
+        product.setTheme("골프");
+        product.setClassicPrice(490000);
+        TravelOption hotel = options.findAll().getFirst();
+        hotel.setName("5등급 호텔");
+        hotel.setGrade("PREMIUM");
+        hotel.setDefaultForGrade("PREMIUM");
+        hotel.setAllowedTourGrades("CLASSIC,GRAND,PREMIUM");
+        when(python.interpret(any())).thenReturn(new InternalResponse(new InterpretedFields(
+                omitted(), omitted(), resolved("CLASSIC"), resolved("5등급"), omitted(), omitted(), List.of())));
+        var result = service.interpret(new InterpretationRequest("골프여행 클래식 호텔은 5등급으로 해줘",
+                new Selection(1L, null, null, emptyOptions())));
+        assertEquals(Status.MATCHED, result.fields().hotel().status());
+        assertEquals(20L, result.selection().optionIds().hotel());
+
+        when(python.interpret(any())).thenReturn(new InternalResponse(new InterpretedFields(
+                omitted(), omitted(), omitted(), omitted(), omitted(), omitted(), List.of())));
+        var preserved = service.interpret(new InterpretationRequest("선택 유지", result.selection()));
+        assertEquals(result.selection(), preserved.selection());
+    }
+
+    @Test
+    void rejectsCrossGradeHotelWithoutExplicitPermission() {
+        when(python.interpret(any())).thenReturn(new InternalResponse(new InterpretedFields(
+                resolved("푸껫 허니문"), omitted(), resolved("PREMIUM"), resolved("오션뷰 객실"), omitted(), omitted(), List.of())));
+        var result = service.interpret(request());
+        assertEquals(Status.INVALID, result.fields().hotel().status());
+        assertNull(result.selection().optionIds().hotel());
+    }
+
+    private OptionIds emptyOptions() { return new OptionIds(null, null, null, List.of()); }
 
     private InterpretationRequest request() {
         return new InterpretationRequest("푸껫 허니문", new Selection(null, null, null,

@@ -27,7 +27,8 @@ public final class VoiceDtos {
 
     public record ProductCandidate(Long id, String name, String theme, List<String> availableGrades) {}
     public record ScheduleCandidate(Long id, Long productId, LocalDate departureDate) {}
-    public record OptionCandidate(Long id, Long productId, String type, String name, String grade) {}
+    public record OptionCandidate(Long id, Long productId, String type, String name, String grade,
+                                  List<String> allowedTourGrades) {}
     public record Candidates(List<ProductCandidate> products, List<ScheduleCandidate> schedules,
                              List<OptionCandidate> options) {}
     public record InternalRequest(String text, Selection context, Candidates candidates) {}
