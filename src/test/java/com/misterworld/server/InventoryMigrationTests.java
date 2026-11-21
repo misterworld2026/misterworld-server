@@ -33,7 +33,7 @@ class InventoryMigrationTests {
     private ItemInventoryRepository inventory;
 
     @Test
-    void reclassifiesExistingFourWithoutChangingQuantityOrTimestamp() {
+    void reclassifiesExistingFourAfterThresholdRestorationWithoutChangingQuantityOrTimestamp() {
         var product = new TravelProduct();
         product.setName("재고 기준 변경 검증");
         product.setTheme("골프");
@@ -57,10 +57,20 @@ class InventoryMigrationTests {
             return null;
         });
 
+        var afterThree = jdbc.queryForMap(
+            "SELECT `재고수량`, `재고상태`, `수정일시` FROM `물품재고` WHERE `물품재고_ID` = ?", item.getId());
+        assertThat(afterThree.get("재고상태")).isEqualTo("NORMAL");
+
+        jdbc.execute((ConnectionCallback<Void>) connection -> {
+            ScriptUtils.executeSqlScript(connection,
+                new ClassPathResource("db/migration/V12__inventory_threshold_four.sql"));
+            return null;
+        });
+
         var stored = jdbc.queryForMap(
             "SELECT `재고수량`, `재고상태`, `수정일시` FROM `물품재고` WHERE `물품재고_ID` = ?", item.getId());
         assertThat(stored.get("재고수량")).isEqualTo(4);
-        assertThat(stored.get("재고상태")).isEqualTo("NORMAL");
+        assertThat(stored.get("재고상태")).isEqualTo("LOW_STOCK");
         assertThat(((java.sql.Timestamp) stored.get("수정일시")).toLocalDateTime()).isEqualTo(timestamp);
     }
 }

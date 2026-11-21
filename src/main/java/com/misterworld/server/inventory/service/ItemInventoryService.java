@@ -121,7 +121,7 @@ public class ItemInventoryService {
 
     public InventoryStatus determineInventoryStatus(Integer quantity) {
         validateQuantity(quantity);
-        return quantity == 0 ? InventoryStatus.OUT_OF_STOCK : quantity <= 3 ? InventoryStatus.LOW_STOCK :
+        return quantity == 0 ? InventoryStatus.OUT_OF_STOCK : quantity <= 4 ? InventoryStatus.LOW_STOCK :
             InventoryStatus.NORMAL;
     }
 

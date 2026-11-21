@@ -136,7 +136,7 @@ class ApiIntegrationTests {
             var update = call("PATCH", "/api/admin/inventory/" + inventoryId, "{\"quantity\":" + value + "}", access);
             assertThat(update.statusCode()).as(update.body()).isEqualTo(200);
             assertThat((String) JsonPath.read(update.body(), "$.status")).isEqualTo(
-                value == 0 ? "OUT_OF_STOCK" : value <= 3 ? "LOW_STOCK" : "NORMAL");
+                value == 0 ? "OUT_OF_STOCK" : value <= 4 ? "LOW_STOCK" : "NORMAL");
         }
         assertThat(
             call("PATCH", "/api/admin/inventory/" + inventoryId, "{\"quantity\":1.5}", access).statusCode()).isEqualTo(

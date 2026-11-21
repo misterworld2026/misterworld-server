@@ -141,7 +141,8 @@ class BookingManagementIntegrationTests {
     }
     ItemInventory stock(int quantity) {
         var item=new ItemInventory();item.setTravelProduct(product);item.setItemName("기념품");
-        item.setQuantity(quantity);item.setStatus(InventoryStatus.NORMAL);
+        item.setQuantity(quantity);item.setStatus(quantity == 0 ? InventoryStatus.OUT_OF_STOCK :
+            quantity <= 4 ? InventoryStatus.LOW_STOCK : InventoryStatus.NORMAL);
         item.setUpdatedAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
         return inventory.saveAndFlush(item);
     }
@@ -367,7 +368,7 @@ class BookingManagementIntegrationTests {
         assertThat(cancellation.statusCode()).as(cancellation.body()).isEqualTo(200);
         var restored=inventory.findById(item.getId()).orElseThrow();
         assertThat(restored.getQuantity()).isEqualTo(4);
-        assertThat(restored.getStatus()).isEqualTo(InventoryStatus.NORMAL);
+        assertThat(restored.getStatus()).isEqualTo(InventoryStatus.LOW_STOCK);
         assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getRestoredAt()).isNotNull();
         assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
