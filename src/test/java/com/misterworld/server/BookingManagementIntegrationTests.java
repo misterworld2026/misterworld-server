@@ -4,6 +4,9 @@ import com.jayway.jsonpath.JsonPath;
 import com.misterworld.server.member.entity.*;
 import com.misterworld.server.member.entity.Role;
 import com.misterworld.server.member.repository.MemberRepository;
+import com.misterworld.server.inventory.entity.InventoryStatus;
+import com.misterworld.server.inventory.entity.ItemInventory;
+import com.misterworld.server.inventory.repository.ItemInventoryRepository;
 import com.misterworld.server.security.*;
 import com.misterworld.server.domain.*;
 import com.misterworld.server.repository.*;
@@ -44,6 +47,7 @@ class BookingManagementIntegrationTests {
     @DynamicPropertySource static void database(DynamicPropertyRegistry r) {
         String url=System.getenv("MW_TEST_DB_URL");
         r.add("spring.datasource.url", () -> url==null ? "jdbc:h2:mem:booking;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=FALSE" : url);
+        r.add("spring.datasource.driver-class-name", () -> url==null ? "org.h2.Driver" : "com.mysql.cj.jdbc.Driver");
         r.add("spring.datasource.username", () -> url==null ? "sa" : "root");
         r.add("spring.datasource.password", () -> url==null ? "" : System.getenv("MW_TEST_DB_PASSWORD"));
     }
@@ -81,6 +85,7 @@ class BookingManagementIntegrationTests {
     @Autowired TravelScheduleRepository schedules;
     @Autowired ScheduleStatusScheduler scheduleStatusScheduler;
     @Autowired TravelApplicationRepository applications;
+    @Autowired ItemInventoryRepository inventory;
     @Autowired @org.springframework.test.context.bean.override.mockito.MockitoSpyBean TravelParticipantRepository participants;
     @Autowired TokenSessionRepository sessions;
     @Autowired JwtProvider jwt;
@@ -131,6 +136,12 @@ class BookingManagementIntegrationTests {
     TravelSchedule schedule(TravelProduct p,LocalDate date) {
         var s=new TravelSchedule();s.setTravelProduct(p);s.setDepartureDate(date);s.setArrivalDate(date.plusDays(3));
         s.setApplicantCount(0);s.setStatus(ScheduleStatus.RECRUITING_SCHEDULE);return schedules.saveAndFlush(s);
+    }
+    ItemInventory stock(int quantity) {
+        var item=new ItemInventory();item.setTravelProduct(product);item.setItemName("기념품");
+        item.setQuantity(quantity);item.setStatus(InventoryStatus.NORMAL);
+        item.setUpdatedAt(LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
+        return inventory.saveAndFlush(item);
     }
     HttpResponse<String> call(String method,String path,String body,String access) throws Exception {
         var b=HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("Content-Type","application/json");
@@ -332,6 +343,32 @@ class BookingManagementIntegrationTests {
         assertThat(messages(first)).hasSize(2);
         assertThat(messages(third)).extracting(SmsNotification::getMessage).containsExactly("출발확정");
         error(call("PUT","/api/my/applications/"+first+"/cancel",null,token),409,"CANCELLATION_NOT_ALLOWED");
+    }
+    @Test void confirmationAndLaterBookingsDeductInventoryOncePerApplicant() throws Exception {
+        var item=stock(4);
+        id(book(2,"stock-pending"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
+        id(book(1,"stock-confirm"));
+        var afterConfirmation=inventory.findById(item.getId()).orElseThrow();
+        assertThat(afterConfirmation.getQuantity()).isEqualTo(1);
+        assertThat(afterConfirmation.getStatus()).isEqualTo(InventoryStatus.LOW_STOCK);
+        id(book(1,"stock-late"));
+        var afterLateBooking=inventory.findById(item.getId()).orElseThrow();
+        assertThat(afterLateBooking.getQuantity()).isZero();
+        assertThat(afterLateBooking.getStatus()).isEqualTo(InventoryStatus.OUT_OF_STOCK);
+        error(book(1,"stock-sold-out"),409,"INSUFFICIENT_STOCK");
+        assertThat(valid()).hasSize(3);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+    }
+    @Test void insufficientInventoryRollsBackDepartureConfirmation() throws Exception {
+        var item=stock(2);
+        id(book(2,"stock-short-first"));
+        error(book(1,"stock-short-threshold"),409,"INSUFFICIENT_STOCK");
+        assertThat(valid()).hasSize(1);
+        assertThat(valid().getFirst().getStatus()).isEqualTo(ApplicationStatus.PENDING);
+        assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
+            .isEqualTo(ScheduleStatus.RECRUITING_SCHEDULE);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(2);
     }
     @Test void pendingCancellationAndClosedUnconfirmedCancellationPreserveRows() throws Exception {
         long first=id(book(1,"pending-cancel"));long travelers=participants.count();

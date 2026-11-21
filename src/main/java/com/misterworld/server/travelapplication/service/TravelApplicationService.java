@@ -150,7 +150,10 @@ public class TravelApplicationService {
             savedParticipant.setParticipantType(participant.participantType()); participants.save(savedParticipant);
         }
         schedules.updateApplicantCount(request.scheduleId());
-        if(alreadyConfirmed) notifications.sendConfirmationNotification(application);
+        if(alreadyConfirmed) {
+            schedules.deductInventoryForConfirmedApplicants(schedule, request.applicantCount());
+            notifications.sendConfirmationNotification(application);
+        }
         else if (!schedules.checkDepartureCondition(request.scheduleId())) {
             notifications.createNotification(application, NotificationType.APPLICATION_COMPLETED);
         }

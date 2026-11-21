@@ -1,6 +1,7 @@
 package com.misterworld.server.travelschedule.service;
 
 import com.misterworld.server.common.BusinessException;
+import com.misterworld.server.inventory.service.ItemInventoryService;
 import com.misterworld.server.notification.entity.NotificationType;
 import com.misterworld.server.notification.service.SmsNotificationService;
 import com.misterworld.server.travelapplication.entity.ApplicationStatus;
@@ -34,6 +35,7 @@ public class TravelScheduleService {
     private final TravelProductRepository products;
     private final TravelApplicationRepository applications;
     private final SmsNotificationService notifications;
+    private final ItemInventoryService inventory;
     private final BookingPolicy policy;
     private final java.time.Clock clock;
 
@@ -147,10 +149,16 @@ public class TravelScheduleService {
     @Transactional
     public boolean checkDepartureCondition(Long scheduleId) {
         var schedule=schedules.findByIdForUpdate(scheduleId).orElseThrow(BusinessException::notFound);
+        var validApplications = applications.findValidApplicationsByScheduleId(scheduleId);
         if(schedule.getStatus()!=ScheduleStatus.RECRUITING_SCHEDULE ||
-            !isDepartureConditionMet(schedule,applications.findValidApplicationsByScheduleId(scheduleId))) return false;
+            !isDepartureConditionMet(schedule,validApplications)) return false;
+        deductInventoryForConfirmedApplicants(schedule, calculateValidApplicantCount(validApplications));
         confirmDeparture(schedule); confirmPendingApplications(scheduleId);
         notifications.sendDepartureNotifications(scheduleId); return true;
+    }
+    @Transactional
+    public void deductInventoryForConfirmedApplicants(TravelSchedule schedule, int applicantCount) {
+        inventory.deductForConfirmedApplicants(schedule.getTravelProduct().getId(), applicantCount);
     }
     public void confirmDeparture(TravelSchedule schedule) {
         require(schedule.getStatus()==ScheduleStatus.RECRUITING_SCHEDULE,"모집 중 일정만 출발 확정할 수 있습니다.");

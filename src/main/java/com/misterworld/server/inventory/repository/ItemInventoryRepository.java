@@ -12,6 +12,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface ItemInventoryRepository extends JpaRepository<ItemInventory, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from ItemInventory i where i.travelProduct.id = :productId order by i.id")
+    List<ItemInventory> findByProductIdForUpdate(@Param("productId") Long productId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from ItemInventory i where i.id = :inventoryId")
     Optional<ItemInventory> findByIdForUpdate(@Param("inventoryId") Long inventoryId);
 }

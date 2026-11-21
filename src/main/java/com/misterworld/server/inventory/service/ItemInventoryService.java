@@ -68,6 +68,22 @@ public class ItemInventoryService {
         return updateInventory(itemId, quantity);
     }
 
+    @Transactional
+    public void deductForConfirmedApplicants(Long productId, int applicantCount) {
+        require(applicantCount > 0, "확정 인원은 양수여야 합니다.");
+        var items = inventory.findByProductIdForUpdate(productId);
+        for (var item : items) {
+            if (item.getQuantity() < applicantCount)
+                throw new BusinessException(409, "INSUFFICIENT_STOCK", item.getItemName() + " 재고가 부족합니다.");
+        }
+        var now = LocalDateTime.now(clock);
+        for (var item : items) {
+            item.setQuantity(item.getQuantity() - applicantCount);
+            updateStockStatus(item);
+            item.setUpdatedAt(now);
+        }
+    }
+
     public void validateQuantity(Integer quantity) {
         require(quantity != null && quantity >= 0, "재고 수량은 0 이상의 정수여야 합니다.");
     }
