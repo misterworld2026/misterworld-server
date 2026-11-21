@@ -7,6 +7,7 @@ import com.misterworld.server.member.repository.MemberRepository;
 import com.misterworld.server.inventory.entity.InventoryStatus;
 import com.misterworld.server.inventory.entity.ItemInventory;
 import com.misterworld.server.inventory.repository.ItemInventoryRepository;
+import com.misterworld.server.inventory.repository.InventoryDeductionRepository;
 import com.misterworld.server.security.*;
 import com.misterworld.server.domain.*;
 import com.misterworld.server.repository.*;
@@ -86,6 +87,7 @@ class BookingManagementIntegrationTests {
     @Autowired ScheduleStatusScheduler scheduleStatusScheduler;
     @Autowired TravelApplicationRepository applications;
     @Autowired ItemInventoryRepository inventory;
+    @Autowired InventoryDeductionRepository deductions;
     @Autowired @org.springframework.test.context.bean.override.mockito.MockitoSpyBean TravelParticipantRepository participants;
     @Autowired TokenSessionRepository sessions;
     @Autowired JwtProvider jwt;
@@ -359,6 +361,29 @@ class BookingManagementIntegrationTests {
         error(book(1,"stock-sold-out"),409,"INSUFFICIENT_STOCK");
         assertThat(valid()).hasSize(3);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).singleElement()
+            .extracting(d -> d.getQuantity()).isEqualTo(4);
+        var cancellation=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken);
+        assertThat(cancellation.statusCode()).as(cancellation.body()).isEqualTo(200);
+        var restored=inventory.findById(item.getId()).orElseThrow();
+        assertThat(restored.getQuantity()).isEqualTo(4);
+        assertThat(restored.getStatus()).isEqualTo(InventoryStatus.NORMAL);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getRestoredAt()).isNotNull();
+        assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
+    }
+    @Test void cancellationDoesNotRestoreItemsAddedAfterConfirmation() throws Exception {
+        var original=stock(5);
+        id(book(3,"stock-before-new-item"));
+        assertThat(inventory.findById(original.getId()).orElseThrow().getQuantity()).isEqualTo(2);
+        var addedLater=stock(7);
+        addedLater.setItemName("새 기념품");
+        inventory.saveAndFlush(addedLater);
+        var cancellation=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken);
+        assertThat(cancellation.statusCode()).as(cancellation.body()).isEqualTo(200);
+        assertThat(inventory.findById(original.getId()).orElseThrow().getQuantity()).isEqualTo(5);
+        assertThat(inventory.findById(addedLater.getId()).orElseThrow().getQuantity()).isEqualTo(7);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).hasSize(1);
     }
     @Test void insufficientInventoryRollsBackDepartureConfirmation() throws Exception {
         var item=stock(2);

@@ -158,7 +158,7 @@ public class TravelScheduleService {
     }
     @Transactional
     public void deductInventoryForConfirmedApplicants(TravelSchedule schedule, int applicantCount) {
-        inventory.deductForConfirmedApplicants(schedule.getTravelProduct().getId(), applicantCount);
+        inventory.deductForConfirmedApplicants(schedule.getTravelScheduleId(), schedule.getTravelProduct().getId(), applicantCount);
     }
     public void confirmDeparture(TravelSchedule schedule) {
         require(schedule.getStatus()==ScheduleStatus.RECRUITING_SCHEDULE,"모집 중 일정만 출발 확정할 수 있습니다.");
@@ -173,6 +173,7 @@ public class TravelScheduleService {
         if(!java.util.Set.of(ScheduleStatus.RECRUITING_SCHEDULE,ScheduleStatus.CONFIRMED_SCHEDULE,ScheduleStatus.CLOSED_SCHEDULE)
                 .contains(schedule.getStatus())) throw new BusinessException(409,"INVALID_STATE","진행·완료 일정은 취소할 수 없습니다.");
         var applications=this.applications.findValidApplicationsByScheduleId(scheduleId);
+        inventory.restoreForCancelledSchedule(scheduleId);
         schedule.setStatus(ScheduleStatus.CANCELLED_SCHEDULE);
         schedule.setCancelledAt(java.time.LocalDateTime.ofInstant(clock.instant(),java.time.ZoneOffset.UTC));
         for(var application:applications) {
