@@ -12,9 +12,30 @@ public interface SmsClient {
         return false;
     }
 
-    class Rejected extends RuntimeException {
-        public Rejected(String message) {
+    class Failure extends IllegalStateException {
+        private final String reasonCode;
+        private final Integer httpStatus;
+        private final String providerCode;
+
+        public Failure(String message, String reasonCode, Integer httpStatus, String providerCode) {
             super(message);
+            this.reasonCode = reasonCode;
+            this.httpStatus = httpStatus;
+            this.providerCode = providerCode;
+        }
+
+        public String reasonCode() { return reasonCode; }
+        public Integer httpStatus() { return httpStatus; }
+        public String providerCode() { return providerCode; }
+    }
+
+    class Rejected extends Failure {
+        public Rejected(String message) {
+            this(message, "PROVIDER_REJECTED", null, null);
+        }
+
+        public Rejected(String message, String reasonCode, Integer httpStatus, String providerCode) {
+            super(message, reasonCode, httpStatus, providerCode);
         }
     }
 }

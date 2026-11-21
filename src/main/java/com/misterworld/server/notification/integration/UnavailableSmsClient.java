@@ -7,6 +7,6 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "app.sms.provider", havingValue = "unavailable", matchIfMissing = true)
 public class UnavailableSmsClient implements SmsClient {
     public void sendSms(String phoneNumber, String message) {
-        throw new Rejected("SMS provider is not configured");
+        throw new Rejected("SMS provider is not configured", "PROVIDER_NOT_CONFIGURED", null, null);
     }
 }

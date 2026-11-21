@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import javax.crypto.Mac;
@@ -65,7 +67,7 @@ public class SolapiSmsClient implements SmsClient {
     public void sendSms(String phoneNumber, String message, String deliveryKey) {
         String recipient = phoneNumber.replace("-", "").replace(" ", "");
         if (!recipient.matches("0[0-9]{7,10}")) {
-            throw new Rejected("Invalid domestic SMS recipient");
+            throw new Rejected("Invalid domestic SMS recipient", "INVALID_RECIPIENT", null, null);
         }
 
         var body = Map.of("messages", List.of(Map.of("to", recipient, "from", sender,
@@ -81,26 +83,46 @@ public class SolapiSmsClient implements SmsClient {
             response = http.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("SOLAPI request interrupted");
+            throw new Failure("SOLAPI request interrupted", "REQUEST_INTERRUPTED", null, null);
         } catch (IOException error) {
-            throw new IllegalStateException("SOLAPI response unavailable");
+            throw new Failure("SOLAPI response unavailable", "RESPONSE_UNAVAILABLE", null, null);
         }
 
-        if (REJECTION_STATUS_CODES.contains(response.statusCode())) {
-            throw new Rejected("SOLAPI rejected request (HTTP " + response.statusCode() + ")");
+        int status = response.statusCode();
+        if (REJECTION_STATUS_CODES.contains(status)) {
+            throw new Rejected("SOLAPI rejected request", "HTTP_REJECTED", status, readHttpErrorCode(response.body()));
         }
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("Unexpected SOLAPI HTTP status");
+        if (status < 200 || status >= 300) {
+            throw new Failure("Unexpected SOLAPI HTTP status", "UNEXPECTED_HTTP_STATUS",
+                status, readHttpErrorCode(response.body()));
         }
-        var result = json.readTree(response.body());
+        JsonNode result;
+        try {
+            result = json.readTree(response.body());
+        } catch (JacksonException error) {
+            throw new Failure("Invalid SOLAPI response", "INVALID_RESPONSE", status, null);
+        }
         var registered = result.path("groupInfo").path("count").path("registeredSuccess");
         var failed = result.path("failedMessageList");
         if (registered.asInt(-1) == 0 && failed.isArray() && failed.size() == 1) {
-            throw new Rejected("SOLAPI rejected message");
+            throw new Rejected("SOLAPI rejected message", "MESSAGE_REJECTED", status,
+                safeProviderCode(failed.get(0).path("statusCode").asText()));
         }
         if (registered.asInt(-1) != 1 || !failed.isArray() || !failed.isEmpty()) {
-            throw new IllegalStateException("SOLAPI did not confirm message acceptance");
+            throw new Failure("SOLAPI did not confirm message acceptance", "ACCEPTANCE_UNKNOWN", status, null);
         }
+    }
+
+    private String readHttpErrorCode(String body) {
+        try {
+            return safeProviderCode(json.readTree(body).path("errorCode").asText());
+        } catch (JacksonException error) {
+            return null;
+        }
+    }
+
+    private static String safeProviderCode(String code) {
+        return code != null && code.matches("(?:[0-9]{4}|[A-Za-z][A-Za-z0-9_-]{0,63})") ? code : null;
     }
 
     private String authorization() {
@@ -112,7 +134,7 @@ public class SolapiSmsClient implements SmsClient {
             String signature = HexFormat.of().formatHex(mac.doFinal((date + salt).getBytes(StandardCharsets.UTF_8)));
             return "HMAC-SHA256 apiKey=%s, date=%s, salt=%s, signature=%s".formatted(apiKey, date, salt, signature);
         } catch (GeneralSecurityException error) {
-            throw new Rejected("Unable to sign SOLAPI request");
+            throw new Rejected("Unable to sign SOLAPI request", "SIGNING_FAILED", null, null);
         }
     }
 }

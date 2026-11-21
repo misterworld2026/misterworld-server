@@ -72,14 +72,44 @@ class SolapiSmsClientTests {
             {"groupInfo":{"count":{"registeredSuccess":0}},"failedMessageList":[{"statusCode":"3040"}]}
             """);
         assertThatThrownBy(() -> client.sendSms("01098765432", "출발 확정"))
-            .isInstanceOf(SmsClient.Rejected.class);
+            .isInstanceOfSatisfying(SmsClient.Rejected.class, failure -> {
+                assertThat(failure.reasonCode()).isEqualTo("MESSAGE_REJECTED");
+                assertThat(failure.httpStatus()).isEqualTo(200);
+                assertThat(failure.providerCode()).isEqualTo("3040");
+            });
+    }
+
+    @Test
+    void retainsHttpRejectionDetails() {
+        respond(401, """
+            {"errorCode":"AuthenticationFailed","errorMessage":"Provider rejected credentials"}
+            """);
+        assertThatThrownBy(() -> client.sendSms("01098765432", "출발 확정"))
+            .isInstanceOfSatisfying(SmsClient.Rejected.class, failure -> {
+                assertThat(failure.reasonCode()).isEqualTo("HTTP_REJECTED");
+                assertThat(failure.httpStatus()).isEqualTo(401);
+                assertThat(failure.providerCode()).isEqualTo("AuthenticationFailed");
+            });
+    }
+
+    @Test
+    void keepsHttpRejectionWhenErrorBodyIsNotJson() {
+        respond(403, "<html>Forbidden</html>");
+        assertThatThrownBy(() -> client.sendSms("01098765432", "출발 확정"))
+            .isInstanceOfSatisfying(SmsClient.Rejected.class, failure -> {
+                assertThat(failure.httpStatus()).isEqualTo(403);
+                assertThat(failure.providerCode()).isNull();
+            });
     }
 
     @Test
     void classifiesServerErrorAsUnconfirmed() {
         respond(503, "{}");
         assertThatThrownBy(() -> client.sendSms("01098765432", "출발 확정"))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOfSatisfying(SmsClient.Failure.class, failure -> {
+                assertThat(failure).isNotInstanceOf(SmsClient.Rejected.class);
+                assertThat(failure.httpStatus()).isEqualTo(503);
+            });
     }
 
     private void respond(int status, String body) {

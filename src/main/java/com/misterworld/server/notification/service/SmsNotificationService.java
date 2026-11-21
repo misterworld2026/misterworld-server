@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 
 import com.misterworld.server.notification.entity.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
 import org.springframework.data.domain.*;
@@ -20,6 +21,7 @@ import java.time.*;
 import java.util.concurrent.*;
 
 @Service @RequiredArgsConstructor
+@Slf4j
 public class SmsNotificationService {
     private final SmsNotificationRepository notifications;
     private final TravelApplicationRepository applications;
@@ -91,9 +93,17 @@ public class SmsNotificationService {
             task.get(environment.getProperty("app.sms.timeout-ms",Long.class,5000L),TimeUnit.MILLISECONDS);
         } catch(ExecutionException | TimeoutException | InterruptedException error) {
             task.cancel(true);
-            boolean rejected = error instanceof ExecutionException && error.getCause() instanceof SmsClient.Rejected;
+            Throwable cause = error instanceof ExecutionException && error.getCause() != null ? error.getCause() : error;
+            boolean rejected = cause instanceof SmsClient.Rejected;
             String failureCode = error instanceof TimeoutException ? "SMS_TIMEOUT" : "SMS_FAILED";
             if (!client.supportsSafeRetry() && !rejected) failureCode = SmsDeliveryStore.DELIVERY_UNKNOWN;
+            if (cause instanceof SmsClient.Failure failure) {
+                log.warn("SMS delivery failed notificationId={} result={} reason={} httpStatus={} providerCode={}",
+                    notificationId, failureCode, failure.reasonCode(), failure.httpStatus(), failure.providerCode());
+            } else {
+                log.warn("SMS delivery failed notificationId={} result={} exceptionType={}",
+                    notificationId, failureCode, cause.getClass().getSimpleName());
+            }
             try {
                 recordDeliveryResult(notificationId,delivery.claimToken(),NotificationStatus.FAILED,failureCode);
             } finally {
