@@ -5,7 +5,7 @@ Spring 담당자가 음성 선택 기능을 구현할 때 읽는 문서다. 요�
 ## 현재 상태와 실행 전 확인
 
 - `main` 병합 후 상품·일정·옵션 엔티티는 `domain` 패키지이며, 인증은 `/api/auth`와 서버의 JWT 세션을 사용한다.
-- `VoicePreviewController`, `VoicePreviewService`, `service.VoiceProcessingClient`가 `/api/v1/voice` 공개 API 두 개를 제공한다. `main`의 별도 `/api/voice/interpret`는 기존 미연결 API다. Python FastAPI의 `GET /health`, `/internal/v1/transcribe`, `/internal/v1/interpret`는 구현되어 있다.
+- `VoicePreviewController`, `VoicePreviewService`, `service.VoiceProcessingClient`가 `/api/v1/voice` 공개 API 두 개를 제공한다. Python FastAPI의 `GET /health`, `/internal/v1/transcribe`, `/internal/v1/interpret`는 구현되어 있다.
 - Spring은 `VOICE_PYTHON_BASE_URL`(기본 `http://127.0.0.1:8001`), `VOICE_PYTHON_CONNECT_TIMEOUT_MS`(기본 3000), `VOICE_PYTHON_READ_TIMEOUT_MS`(기본 180000)로 Python 연결을 설정한다. 모델 첫 로딩·추론 시간을 고려해 실제 환경에서 값을 조정한다.
 - `TravelProduct`의 ID는 `id`, `TravelSchedule`의 ID는 `travelScheduleId`, 종료일 필드명은 `arrivalDate`, `TravelOption`의 ID는 `id`다. API 계약의 `id`·`departureDate`로 변환할 때 필드명을 확인한다.
 - `main`의 Flyway V1은 **빈 DB 전용**이다. 기존 DB를 업그레이드할 때 임의로 V1을 적용하지 말고 스키마와 데이터를 먼저 검토해야 한다. 특히 `여행상태`가 옛 값만 허용하는 MySQL `ENUM`이면 `UPDATE`만으로는 새 값을 저장할 수 없다. 백업 후 아래와 같이 컬럼과 값을 변환해야 한다.

@@ -60,6 +60,8 @@ class ApiIntegrationTests {
         assertThat(call("POST", "/api/auth/signup", signup("voice-preview@example.com"), null).statusCode()).isEqualTo(201);
         String memberToken = token("voice-preview@example.com");
         assertThat(call("POST", "/api/v1/voice/interpretations", "{}", memberToken).statusCode()).isEqualTo(400);
+        assertThat(call("POST", "/api/voice/interpret", "{\"text\":\"골프 여행\"}", memberToken).statusCode())
+            .isEqualTo(404);
         var staff = new Member();
         staff.setEmail("voice-staff@example.com");
         staff.setPassword(encoder.encode("test-password-123"));
