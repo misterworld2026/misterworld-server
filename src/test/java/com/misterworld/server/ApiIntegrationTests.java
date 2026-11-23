@@ -182,7 +182,7 @@ class ApiIntegrationTests {
             if (role == Role.STAFF) {
                 assertThat(call("POST", "/api/admin/auth/login", body, access).statusCode()).isEqualTo(404);
                 assertThat(call("POST", "/api/admin/auth/signup", signup("another-staff@example.com"), access)
-                    .statusCode()).isEqualTo(409);
+                    .statusCode()).isEqualTo(404);
             }
             var badPassword = call("POST", "/api/auth/login", body.replace("test-password-123", "wrong-password"), null);
             assertThat(badPassword.statusCode()).isEqualTo(401);
@@ -194,7 +194,8 @@ class ApiIntegrationTests {
         var openapi = call("GET", "/v3/api-docs", null, null);
         assertThat(openapi.statusCode()).isEqualTo(200);
         assertThat((java.util.Map<String, Object>) JsonPath.read(openapi.body(), "$.paths"))
-            .containsKey("/api/auth/login").doesNotContainKey("/api/admin/auth/login");
+            .containsKey("/api/auth/login")
+            .doesNotContainKeys("/api/admin/auth/login", "/api/admin/auth/signup");
         java.nio.file.Files.writeString(java.nio.file.Path.of("build/unified-login-openapi.json"),
             openapi.body(), java.nio.charset.StandardCharsets.UTF_8);
     }

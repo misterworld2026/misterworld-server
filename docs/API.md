@@ -2,12 +2,10 @@
 
 근거: 사용자 프롬프트의 기존 API 목록. 실제 API 이미지와 HTML은 미제공/미발견이다. 기존 경로·HTTP 메서드를 유지했다. 성공은 DTO JSON이며 Entity를 직접 노출하지 않는다. 목록은 page=0, size=20 기본, size 최대 100. 현재 정렬은 서버 고정이며 사용자 지정 정렬·상태 필터는 미구현이다. Page JSON 계약은 Spring Data 기본 직렬화이며 프론트 협의 후 고정 응답 구조로 바꿀 필요가 있다.
 
-모든 `/api/admin/**`는 STAFF. 예외는 `/api/admin/auth/login`만 공개다. `/api/my/**`, 상품·일정 조회, 신청, 음성은 인증이 필요하다. `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`는 공개다. refresh는 유효 REFRESH JWT가 필수다. STAFF 공개 가입은 허용하지 않는다.
+모든 `/api/admin/**`는 STAFF 권한이 필요하다. 직원도 `/api/auth/login`으로 로그인한다. `/api/my/**`, 상품·일정 조회, 신청, 음성은 인증이 필요하다. `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`는 공개다. refresh는 유효 REFRESH JWT가 필수다. 직원 가입 API는 제공하지 않는다.
 
 | 화면·기능 | 기존 API | Controller 메서드 | Service 메서드 | Entity | DB 테이블·컬럼 | 테스트 |
 |---|---|---|---|---|---|---|
-| 직원 로그인 | POST /api/admin/auth/login | AdminAuthController.login | AuthService.login | Member | 회원.이메일/비밀번호/회원구분 | ApiIntegrationTests |
-| 직원 가입 | POST /api/admin/auth/signup | AdminAuthController.signup | AuthService.createStaffAccount | Member | 회원 | 정책 대기: 인증 후 409 |
 | 토큰 갱신·로그아웃 | POST /api/auth/refresh, POST /api/auth/logout | AuthController.refresh/logout | AuthService.refresh/logout | Member + TokenSession(추가) | 회원 + 인증세션(추가) | ApiIntegrationTests |
 | 상품 목록 | GET /api/tours | TravelProductController.getProducts | TravelProductService.getProducts | TravelProduct | 여행상품.테마/상품명/등급별 가격 | ProductSelectionTests, HTTP CRUD 일부 |
 | 상품 상세 | GET /api/tours/{tourId} | TravelProductController.getProduct | TravelProductService.getProduct | TravelProduct/TravelOption | 여행상품/여행옵션 | 조회 응답 구성, 별도 HTTP 테스트 미실행 |

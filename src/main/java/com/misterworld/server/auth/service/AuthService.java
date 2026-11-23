@@ -59,10 +59,6 @@ public class AuthService {
         require(request.password().equals(request.passwordConfirmation()), "비밀번호 확인이 일치하지 않습니다.");
     }
 
-    public SignUpResponse createStaffAccount(SignUpRequest request) {
-        throw BusinessException.policy();
-    }
-
     @Transactional
     public LoginResponse login(LoginRequest request) {
         var member = members.findByEmail(request.email().strip().toLowerCase(Locale.ROOT))

@@ -86,9 +86,7 @@
 | 구현 메서드 | signup | AuthController | 설계 p.6·8·14~17 | signup(request); 타입/반환형은 개별 원문 확인 필요 | controller/AuthController.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | login | AuthController | 설계 p.6·8·14~17 | login(request); 타입/반환형은 개별 원문 확인 필요 | controller/AuthController.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | logout | AuthController | 설계 p.6·8·14~17 | logout(); 타입/반환형은 개별 원문 확인 필요 | controller/AuthController.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
-| 구현 메서드 | signup | AdminAuthController | 설계 p.6·8 | signup(request); 타입/반환형은 개별 원문 확인 필요 | controller/AdminAuthController.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | signup | AuthService | 설계 p.6·9·14~17 | signup(request); 타입/반환형은 개별 원문 확인 필요 | service/AuthService.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
-| 구현 메서드 | createStaffAccount | AuthService | 설계 p.6·9·14~17 | createStaffAccount(request); 타입/반환형은 개별 원문 확인 필요 | service/AuthService.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | login | AuthService | 설계 p.6·9·14~17 | login(request); 타입/반환형은 개별 원문 확인 필요 | service/AuthService.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | logout | AuthService | 설계 p.6·9·14~17 | logout(); 타입/반환형은 개별 원문 확인 필요 | service/AuthService.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
 | 구현 메서드 | validatePasswordConfirmation | AuthService | 설계 p.6·9·14~17 | validatePasswordConfirmation(request); 타입/반환형은 개별 원문 확인 필요 | service/AuthService.java | 대장 전체 대조 미완료; 없는 구현은 미구현 |
