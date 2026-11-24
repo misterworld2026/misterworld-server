@@ -183,6 +183,55 @@ class BookingManagementIntegrationTests {
         return applications.saveAndFlush(a);
     }
 
+    private HttpResponse<String> payment(long id) throws Exception {
+        return call("POST", "/api/my/applications/" + id + "/payment", null, token);
+    }
+
+    private long bookAndPay(int count, String key) throws Exception {
+        long id = id(book(count, key));
+        assertPaid(id);
+        return id;
+    }
+
+    private void assertPaid(long id) throws Exception {
+        var response = payment(id);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    }
+
+    private int scheduleCount() {
+        return schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getApplicantCount();
+    }
+
+    @Test void paymentAndIndividualCancellationChangeCountAndStockOnlyOnce() throws Exception {
+        var item = stock(7);
+        long first = id(book(2, "payment-cancel-first"));
+        long second = id(book(1, "payment-cancel-second"));
+        long unpaid = id(book(1, "payment-cancel-unpaid"));
+        assertThat(scheduleCount()).isZero();
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(7);
+
+        assertPaid(first);
+        assertThat(scheduleCount()).isEqualTo(2);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(5);
+        assertPaid(first);
+        assertPaid(second);
+        assertThat(scheduleCount()).isEqualTo(3);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
+        assertThat(applications.findById(unpaid).orElseThrow().getStatus()).isEqualTo(ApplicationStatus.PENDING);
+
+        String cancel = "/api/my/applications/" + first + "/cancel";
+        assertThat(call("PUT", cancel, null, token).statusCode()).isEqualTo(200);
+        assertThat(call("PUT", cancel, null, token).statusCode()).isEqualTo(200);
+        assertPaid(first); // Replaying a recorded payment leaves the cancellation intact.
+        assertThat(scheduleCount()).isEqualTo(1);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(6);
+
+        String cancelSchedule = "/api/admin/schedules/" + schedule.getTravelScheduleId() + "/cancel";
+        assertThat(call("PUT", cancelSchedule, null, staffToken).statusCode()).isEqualTo(200);
+        assertThat(scheduleCount()).isZero();
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(7);
+    }
+
     @Test void mockPaymentUsesStoredAmountAndIsIdempotentWithoutDepartureEffects() throws Exception {
         long applicationId=id(book(2,UUID.randomUUID().toString()));
         String path="/api/my/applications/"+applicationId+"/payment";
@@ -193,7 +242,7 @@ class BookingManagementIntegrationTests {
         assertThat((Number)JsonPath.read(paid.body(),"$.paidAmount")).isEqualTo(202);
         assertThat((String)JsonPath.read(paid.body(),"$.status")).isEqualTo("PENDING");
         assertThat(call("POST",path,null,token).body()).isEqualTo(paid.body());
-        assertThat(notifications.count()).isEqualTo(notificationCount);
+        assertThat(notifications.count()).isEqualTo(notificationCount + 1);
         assertThat(participants.count()).isEqualTo(participantCount);
         var unchanged=schedules.findById(schedule.getTravelScheduleId()).orElseThrow();
         assertThat(unchanged.getApplicantCount()).isEqualTo(2);
@@ -215,7 +264,8 @@ class BookingManagementIntegrationTests {
     }
 
     @Test void confirmedUnpaidReservationCanChangeGradeAndOptionsWithFreshQuote() throws Exception {
-        stock(4);
+        stock(7);
+        bookAndPay(3, "confirm-before-unpaid-change");
         long applicationId=id(book(3,"change-three-people"));
         var alternate=new TravelOption();alternate.setTravelProduct(product);alternate.setType("MEAL");
         alternate.setName("현지식 레스토랑");alternate.setGrade("GRAND");
@@ -249,7 +299,7 @@ class BookingManagementIntegrationTests {
         error(call("POST",path+"/quote",changeBody("GRAND",changedIds,null),staffToken),403,"FORBIDDEN");
         error(call("POST",path+"/quote",changeBody("GRAND",changedIds,null),token(member(Role.MEMBER))),404,"NOT_FOUND");
         assertThat(inventory.findAll().stream().filter(i -> i.getTravelProduct().getId().equals(product.getId()))
-            .allMatch(i -> i.getQuantity()==1)).isTrue();
+            .allMatch(i -> i.getQuantity()==4)).isTrue();
     }
 
     @Test void paidReservationCannotBeChanged() throws Exception {
@@ -262,7 +312,7 @@ class BookingManagementIntegrationTests {
 
     @Test void confirmationDeductionIsNotTakenAgainAtStaffStart() throws Exception {
         var item=stock(3);
-        id(book(3,"legacy-stock"));
+        bookAndPay(3,"legacy-stock");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/start",null,staffToken).statusCode()).isEqualTo(200);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
@@ -271,20 +321,20 @@ class BookingManagementIntegrationTests {
 
     @Test void confirmedScheduleDeductsOnlyNewApplicantsBeforeStart() throws Exception {
         var item=stock(5);
-        id(book(3,"legacy-stock-before-late-booking"));
+        bookAndPay(3,"legacy-stock-before-late-booking");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(2);
-        id(book(1,"legacy-stock-late-booking"));
+        bookAndPay(1,"legacy-stock-late-booking");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
 
         var start=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/start",null,staffToken);
         assertThat(start.statusCode()).as(start.body()).isEqualTo(200);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
-        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getQuantity()).isEqualTo(4);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).stream().mapToInt(d -> d.getQuantity()).sum()).isEqualTo(4);
     }
 
     @Test void automaticStartDoesNotDeductConfirmedInventoryAgain() throws Exception {
         var item=stock(3);
-        id(book(3,"automatic-start-stock"));
+        bookAndPay(3,"automatic-start-stock");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         clock.value.set(Instant.parse("2026-12-03T15:00:00Z"));
         scheduleStatusScheduler.advanceDueSchedules();
@@ -312,9 +362,9 @@ class BookingManagementIntegrationTests {
         assertThat((Number)JsonPath.read(r.body(),"$.application.totalPrice")).isEqualTo(202);
         assertThat(participants.count()).isEqualTo(before+2);
         var replay=call("POST","/api/reservations",body(2,key,quote),token);assertThat(id(replay)).isEqualTo(id);
-        assertThat(messages(id)).extracting(SmsNotification::getMessage).containsExactly("신청완료");
+        assertThat(messages(id)).isEmpty();
         error(call("POST","/api/reservations",body(1,key,quote),token),409,"IDEMPOTENCY_CONFLICT");
-        assertThat(valid()).hasSize(1);assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getApplicantCount()).isEqualTo(2);
+        assertThat(valid()).hasSize(1);assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getApplicantCount()).isZero();
     }
     @Test void authenticationAndOwnershipAndParticipantValidation() throws Exception {
         error(call("POST","/api/reservations",body(1,"auth-test-key",null),null),401,"UNAUTHORIZED");
@@ -395,10 +445,10 @@ class BookingManagementIntegrationTests {
         product=product("허니문");schedule=schedule(product,LocalDate.of(2026,12,4));selected=optionIds(product,"GRAND");
         error(call("POST","/api/reservations/quote",body(1,"honeymoon-one",null),token),400,"INVALID_REQUEST");
         error(call("POST","/api/reservations/quote",body(4,"honeymoon-four",null),token),400,"INVALID_REQUEST");
-        long first=id(book(2,"honeymoon-team1"));long second=id(book(2,"honeymoon-team2"));
+        long first=bookAndPay(2,"honeymoon-team1");long second=bookAndPay(2,"honeymoon-team2");
         assertThat(valid()).extracting(TravelApplication::getStatus).containsOnly(ApplicationStatus.CONFIRMED);
         assertThat(messages(first)).extracting(SmsNotification::getMessage).containsExactlyInAnyOrder("신청완료", "출발확정");
-        assertThat(messages(second)).extracting(SmsNotification::getMessage).containsExactly("출발확정");
+        assertThat(messages(second)).extracting(SmsNotification::getMessage).containsExactlyInAnyOrder("신청완료", "출발확정");
         error(call("POST","/api/reservations/quote",body(2,"honeymoon-full",null),token),409,"CAPACITY_EXCEEDED");
     }
     @Test void completedTripsAreDistinctAndDiscountIgnoresMemberTravelCount() throws Exception {
@@ -421,22 +471,23 @@ class BookingManagementIntegrationTests {
         var a=applications.findById(id).orElseThrow();assertThat(a.getTotalPrice()).isEqualTo(999);assertThat(a.getHotelOption()).isEqualTo("CLASSIC HOTEL");
     }
     @Test void confirmationNotifiesAllOnceAndAdditionalBookingOnlyNewApplicant() throws Exception {
-        long first=id(book(2,"threshold-first"));long second=id(book(1,"threshold-second"));
+        long first=bookAndPay(2,"threshold-first");long second=bookAndPay(1,"threshold-second");
         assertThat(valid()).extracting(TravelApplication::getStatus).containsOnly(ApplicationStatus.CONFIRMED);
         assertThat(messages(first)).extracting(SmsNotification::getMessage).containsExactlyInAnyOrder("신청완료", "출발확정");
-        assertThat(messages(second)).extracting(SmsNotification::getMessage).containsExactly("출발확정");
-        long third=id(book(1,"confirmed-additional"));
+        assertThat(messages(second)).extracting(SmsNotification::getMessage).containsExactlyInAnyOrder("신청완료", "출발확정");
+        long third=bookAndPay(1,"confirmed-additional");
         assertThat(messages(first)).hasSize(2);
-        assertThat(messages(third)).extracting(SmsNotification::getMessage).containsExactly("출발확정");
-        error(call("PUT","/api/my/applications/"+first+"/cancel",null,token),409,"CANCELLATION_NOT_ALLOWED");
+        assertThat(messages(third)).extracting(SmsNotification::getMessage).containsExactlyInAnyOrder("신청완료", "출발확정");
+        assertThat(call("PUT","/api/my/applications/"+first+"/cancel",null,token).statusCode()).isEqualTo(200);
     }
     @Test void staffStartDoesNotDeductConfirmedApplicantsAgain() throws Exception {
         var item=stock(4);
-        id(book(2,"stock-pending"));
+        long pending = id(book(2,"stock-pending"));
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
-        id(book(1,"stock-confirm"));
+        assertPaid(pending);
+        bookAndPay(1,"stock-confirm");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
-        id(book(1,"stock-late"));
+        bookAndPay(1,"stock-late");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         assertThat(valid()).hasSize(3);
         String path="/api/admin/schedules/"+schedule.getTravelScheduleId();
@@ -446,8 +497,7 @@ class BookingManagementIntegrationTests {
         assertThat((String)JsonPath.read(started.body(),"$.status")).isEqualTo("IN_PROGRESS_SCHEDULE");
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         assertThat(inventory.findById(item.getId()).orElseThrow().getStatus()).isEqualTo(InventoryStatus.OUT_OF_STOCK);
-        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).singleElement()
-            .extracting(d -> d.getQuantity()).isEqualTo(4);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).extracting(d -> d.getQuantity()).containsExactlyInAnyOrder(2, 1, 1);
         assertThat(call("PUT",path+"/start",null,staffToken).statusCode()).isEqualTo(200);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         error(call("PUT",path+"/cancel",null,staffToken),409,"INVALID_STATE");
@@ -458,7 +508,7 @@ class BookingManagementIntegrationTests {
     }
     @Test void cancellingAfterConfirmationRestoresDeductedInventory() throws Exception {
         var original=stock(5);
-        id(book(3,"stock-before-new-item"));
+        bookAndPay(3,"stock-before-new-item");
         assertThat(inventory.findById(original.getId()).orElseThrow().getQuantity()).isEqualTo(2);
         var addedLater=stock(7);
         addedLater.setItemName("새 기념품");
@@ -472,15 +522,18 @@ class BookingManagementIntegrationTests {
     }
     @Test void insufficientInventoryBlocksConfirmationAndCanBeReplenished() throws Exception {
         var item=stock(2);
-        id(book(2,"stock-short-first"));
-        error(book(1,"stock-short-threshold"),409,"INSUFFICIENT_STOCK");
-        assertThat(valid()).hasSize(1);
+        bookAndPay(2,"stock-short-first");
+        long pending = id(book(1,"stock-short-threshold"));
+        error(payment(pending),409,"INSUFFICIENT_STOCK");
+        assertThat(applications.findById(pending).orElseThrow().getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        assertThat(scheduleCount()).isEqualTo(2);
+        assertThat(valid()).hasSize(2);
         assertThat(valid()).extracting(TravelApplication::getStatus).containsOnly(ApplicationStatus.PENDING);
         assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
             .isEqualTo(ScheduleStatus.RECRUITING_SCHEDULE);
-        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(2);
-        item.setQuantity(3);inventory.saveAndFlush(item);
-        id(book(1,"stock-short-threshold"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        item.setQuantity(1);inventory.saveAndFlush(item);
+        assertPaid(pending);
         assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
             .isEqualTo(ScheduleStatus.CONFIRMED_SCHEDULE);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
@@ -488,14 +541,15 @@ class BookingManagementIntegrationTests {
 
     @Test void insufficientInventoryBlocksAdditionalBookingOnConfirmedSchedule() throws Exception {
         var item=stock(3);
-        id(book(3,"stock-confirmed-base"));
-        error(book(1,"stock-confirmed-extra"),409,"INSUFFICIENT_STOCK");
-        assertThat(valid()).hasSize(1);
+        bookAndPay(3,"stock-confirmed-base");
+        long pending = id(book(1,"stock-confirmed-extra"));
+        error(payment(pending),409,"INSUFFICIENT_STOCK");
+        assertThat(valid()).hasSize(2);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
         item.setQuantity(1);inventory.saveAndFlush(item);
-        id(book(1,"stock-confirmed-extra"));
+        assertPaid(pending);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
-        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getQuantity()).isEqualTo(4);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).stream().mapToInt(d -> d.getQuantity()).sum()).isEqualTo(4);
     }
     @Test void pendingCancellationAndClosedUnconfirmedCancellationPreserveRows() throws Exception {
         long first=id(book(1,"pending-cancel"));long travelers=participants.count();
@@ -508,7 +562,9 @@ class BookingManagementIntegrationTests {
         assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getApplicantCount()).isZero();
     }
     @Test void staffScheduleCancelPreservesTargetsAndRejectsProgressAndCompleted() throws Exception {
-        long first=id(book(2,"staff-cancel-first"));long travelers=participants.count();
+        long first=bookAndPay(2,"staff-cancel-first");
+        long unpaid=id(book(1,"staff-cancel-unpaid"));
+        long travelers=participants.count();
         error(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,token),403,"FORBIDDEN");
         var r=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken);assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
         assertThat(applications.findById(first).orElseThrow().getStatus()).isEqualTo(ApplicationStatus.CANCELLED);
@@ -516,6 +572,7 @@ class BookingManagementIntegrationTests {
         assertThat(participants.count()).isEqualTo(travelers);
         assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
         assertThat(messages(first)).hasSize(2);
+        assertThat(messages(unpaid)).isEmpty();
         for(var status:List.of(ScheduleStatus.IN_PROGRESS_SCHEDULE,ScheduleStatus.COMPLETED_SCHEDULE)) {
             var s=schedule(product,LocalDate.of(2026,12,4));s.setStatus(status);schedules.saveAndFlush(s);
             error(call("PUT","/api/admin/schedules/"+s.getTravelScheduleId()+"/cancel",null,staffToken),409,"INVALID_STATE");
@@ -531,37 +588,41 @@ class BookingManagementIntegrationTests {
     }
 
     @Test void lastSeatConcurrentBookingsAndThresholdConfirmationAreSerialized() throws Exception {
-        id(book(8,"eight-seats-base"));String q1=quote(2,"last-seats-one"),q2=quote(2,"last-seats-two");
+        bookAndPay(8,"eight-seats-base");
+        long first = id(book(2,"last-seats-one")), second = id(book(2,"last-seats-two"));
         var start=new CountDownLatch(1);try(var pool=Executors.newFixedThreadPool(2)) {
-            var f1=pool.submit(() -> {start.await();return call("POST","/api/reservations",body(2,"last-seats-one",q1),token);});
-            var f2=pool.submit(() -> {start.await();return call("POST","/api/reservations",body(2,"last-seats-two",q2),token);});start.countDown();
-            var results=List.of(f1.get(),f2.get());assertThat(results).extracting(HttpResponse::statusCode).containsExactlyInAnyOrder(201,409);
+            var f1=pool.submit(() -> {start.await();return payment(first);});
+            var f2=pool.submit(() -> {start.await();return payment(second);});start.countDown();
+            var results=List.of(f1.get(),f2.get());assertThat(results).extracting(HttpResponse::statusCode).containsExactlyInAnyOrder(200,409);
         }
-        assertThat(valid().stream().mapToInt(TravelApplication::getApplicantCount).sum()).isEqualTo(10);
+        assertThat(valid().stream().filter(a -> a.getPaymentStatus() == PaymentStatus.PAID).mapToInt(TravelApplication::getApplicantCount).sum()).isEqualTo(10);
         assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getApplicantCount()).isEqualTo(10);
     }
     @Test void simultaneousThresholdRequestsAndIdenticalReplayCreateNoDuplicateNotifications() throws Exception {
-        long first=id(book(1,"threshold-base"));String q=quote(2,"threshold-replay");var gate=new CountDownLatch(1);
+        long first=bookAndPay(1,"threshold-base");String q=quote(2,"threshold-replay");var gate=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var jobs=new ArrayList<Future<HttpResponse<String>>>();
             for(int i=0;i<2;i++)jobs.add(pool.submit(() -> {gate.await();return call("POST","/api/reservations",body(2,"threshold-replay",q),token);}));
             gate.countDown();long one=id(jobs.get(0).get()),two=id(jobs.get(1).get());assertThat(one).isEqualTo(two);
+            assertPaid(one);
+            assertPaid(two);
         }
         assertThat(valid()).hasSize(2);
         for(var a:valid()) {
             assertThat(messages(a.getId())).extracting(SmsNotification::getNotificationType)
                 .containsOnlyOnce(NotificationType.DEPARTURE_CONFIRMED)
-                .hasSize(a.getId() == first ? 2 : 1);
+                .hasSize(2);
         }
     }
     @Test void cancelVersusConfirmationAndScheduleCancelVersusBookingStayConsistent() throws Exception {
-        long first=id(book(1,"race-cancel-first"));String q=quote(2,"race-confirm");var gate=new CountDownLatch(1);
+        long first=bookAndPay(1,"race-cancel-first");
+        long second=id(book(2,"race-confirm"));var gate=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var cancel=pool.submit(() -> {gate.await();return call("PUT","/api/my/applications/"+first+"/cancel",null,token);});
-            var apply=pool.submit(() -> {gate.await();return call("POST","/api/reservations",body(2,"race-confirm",q),token);});gate.countDown();
-            assertThat(cancel.get().statusCode()).isIn(200,409);assertThat(apply.get().statusCode()).isEqualTo(201);
+            var apply=pool.submit(() -> {gate.await();return payment(second);});gate.countDown();
+            assertThat(cancel.get().statusCode()).isEqualTo(200);assertThat(apply.get().statusCode()).isEqualTo(200);
         }
-        var loaded=schedules.findById(schedule.getTravelScheduleId()).orElseThrow();assertThat(loaded.getApplicantCount()).isEqualTo(valid().stream().mapToInt(TravelApplication::getApplicantCount).sum());
+        var loaded=schedules.findById(schedule.getTravelScheduleId()).orElseThrow();assertThat(loaded.getApplicantCount()).isEqualTo(valid().stream().filter(a -> a.getPaymentStatus() == PaymentStatus.PAID).mapToInt(TravelApplication::getApplicantCount).sum());
         String secondQuote=quote(1,"race-staff-cancel");var gate2=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var cancel=pool.submit(() -> {gate2.await();return call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken);});
@@ -580,7 +641,7 @@ class BookingManagementIntegrationTests {
         }
     }
     @Test void smsFailureTimeoutRetryAndRecoveryDoNotRollbackBookingOrCancellation() throws Exception {
-        long id=id(book(3,"sms-failure-book"));var n=messages(id).getFirst();provider.mode="FAIL";
+        long id=bookAndPay(3,"sms-failure-book");var n=messages(id).getFirst();provider.mode="FAIL";
         sms.retryNotification(n.getId());assertThat(notifications.findById(n.getId()).orElseThrow().getStatus()).isEqualTo(NotificationStatus.FAILED);
         assertThat(applications.findById(id).orElseThrow().getStatus()).isEqualTo(ApplicationStatus.CONFIRMED);
         int calls=provider.count.get();sms.retryNotification(n.getId());assertThat(provider.count.get()).isEqualTo(calls);
@@ -597,7 +658,7 @@ class BookingManagementIntegrationTests {
         assertThat(cancelled.getRecipientNumber()).isEqualTo("01012345678");
     }
     @Test void abandonedCommittedNotificationIsRecoveredAfterLeaseAndCancelledDepartureIsSuppressed() throws Exception {
-        long id=id(book(3,"outbox-recovery"));var n=messages(id).getFirst();
+        long id=bookAndPay(3,"outbox-recovery");var n=messages(id).getFirst();
         var abandoned=deliveryStore.claim(n.getId());assertThat(abandoned).isNotNull();
         // Simulate provider success followed by process loss before storing the delivery result.
         provider.sendSms(abandoned.phoneNumber(),abandoned.message(),"misterworld-sms-"+n.getId());
@@ -605,7 +666,7 @@ class BookingManagementIntegrationTests {
         clock.value.set(clock.instant().plusSeconds(31));sms.retryNotification(n.getId());
         assertThat(provider.count.get()).isEqualTo(calls);
         assertThat(notifications.findById(n.getId()).orElseThrow().getStatus()).isEqualTo(NotificationStatus.SENT);
-        long another=id(book(1,"outbox-suppress"));assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
+        long another=bookAndPay(1,"outbox-suppress");assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
         var pending=messages(another).stream().filter(m -> m.getNotificationType()==NotificationType.DEPARTURE_CONFIRMED).findFirst().orElseThrow();
         calls=provider.count.get();sms.retryNotification(pending.getId());assertThat(provider.count.get()).isEqualTo(calls);
         assertThat(notifications.findById(pending.getId()).orElseThrow().getLastError()).isEqualTo("RETRY_DISABLED");
@@ -613,8 +674,8 @@ class BookingManagementIntegrationTests {
 
     @Test void smsWithoutProviderIdempotencyRetriesOnlyConfirmedRejections() throws Exception {
         provider.safeRetry = false;
-        var first = messages(id(book(3, "non-idempotent-retry"))).getFirst();
-        var second = messages(id(book(1, "non-idempotent-crash"))).getFirst();
+        var first = messages(bookAndPay(3, "non-idempotent-retry")).getFirst();
+        var second = messages(bookAndPay(1, "non-idempotent-crash")).getFirst();
 
         provider.mode = "REJECTED";
         sms.retryNotification(first.getId());
@@ -643,7 +704,7 @@ class BookingManagementIntegrationTests {
     }
 
     @Test void notificationGroupIncludesCompanionsOnceAndRetriesIndependently() throws Exception {
-        long applicationId = id(book(3, "companion-sms"));
+        long applicationId = bookAndPay(3, "companion-sms");
         var tx = new TransactionTemplate(transactionManager);
         tx.executeWithoutResult(status -> {
             var people = participants.findByTravelApplicationId(applicationId);

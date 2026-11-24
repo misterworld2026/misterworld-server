@@ -7,6 +7,7 @@ import com.misterworld.server.travelapplication.entity.TravelApplication;
 import com.misterworld.server.travelapplication.repository.TravelApplicationRepository;
 import com.misterworld.server.travelapplication.repository.TravelParticipantRepository;
 import com.misterworld.server.travelapplication.entity.ParticipantType;
+import com.misterworld.server.travelapplication.entity.PaymentStatus;
 import java.util.LinkedHashSet;
 
 import com.misterworld.server.notification.entity.*;
@@ -53,6 +54,7 @@ public class SmsNotificationService {
     }
     @Transactional(propagation=Propagation.MANDATORY)
     public void createNotification(TravelApplication application, NotificationType notificationType) {
+        if (application.getPaymentStatus() != PaymentStatus.PAID) return;
         if(notifications.existsByTravelApplicationIdAndNotificationType(application.getId(),notificationType)) return;
         var recipients = new LinkedHashSet<String>();
         recipients.add(application.getMember().getPhoneNumber().replaceAll("[^0-9+]", ""));

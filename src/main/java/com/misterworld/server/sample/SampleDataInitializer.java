@@ -92,7 +92,7 @@ public class SampleDataInitializer implements ApplicationRunner {
                 if(days==21)future.put(theme,schedule);
             }
         }
-        // A new 1-person booking crosses the general departure threshold on this schedule.
+        // A new 1-person payment crosses the general departure threshold on this schedule.
         var pending=future.get("골프");
         application(customer,pending,"CLASSIC",2,ApplicationStatus.PENDING);
         pending.setApplicantCount(2);
@@ -173,6 +173,9 @@ public class SampleDataInitializer implements ApplicationRunner {
         application.setAppliedAt(schedule.getDepartureDate().isBefore(LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul"))))
             ? schedule.getDepartureDate().minusDays(20).atTime(12,0)
             : LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC));
+        application.setPaymentStatus(PaymentStatus.PAID);
+        application.setPaidAmount(application.getTotalPrice());
+        application.setPaidAt(application.getAppliedAt());
         applications.saveAndFlush(application);
         for(int i=0;i<count;i++) {
             var participant=new TravelParticipant();participant.setTravelApplication(application);

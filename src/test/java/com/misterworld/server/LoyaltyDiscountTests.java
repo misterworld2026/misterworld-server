@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class LoyaltyDiscountTests {
     @Test
     void discountStartsAfterTwoCompletedTrips() {
-        var service = new TravelApplicationService(null,null,null,null,null,null,null,null,null,null,null,null,null,null);
+        var service = new TravelApplicationService(null,null,null,null,null,null,null,null,null,null,null,null,null);
 
         assertThat(service.applyLoyaltyDiscount(0)).isZero();
         assertThat(service.applyLoyaltyDiscount(1)).isZero();

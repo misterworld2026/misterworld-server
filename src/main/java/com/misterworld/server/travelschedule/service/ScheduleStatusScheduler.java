@@ -29,7 +29,7 @@ public class ScheduleStatusScheduler {
         var today = policy.today(clock);
         schedules.transitionBeforeDepartureCutoff(RECRUITING_SCHEDULE, CLOSED_SCHEDULE,
             policy.firstBookableDeparture(today));
-        // Stock was already deducted when each schedule was confirmed or received later bookings.
+        // Stock is deducted when each reservation is paid.
         for (Long scheduleId : schedules.findDueScheduleIds(CONFIRMED_SCHEDULE, today)) {
             try {
                 service.startTravel(scheduleId);

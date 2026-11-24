@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface InventoryDeductionRepository extends JpaRepository<InventoryDeduction, Long> {
     List<InventoryDeduction> findByScheduleId(Long scheduleId);
 
+    List<InventoryDeduction> findByApplicationIdAndRestoredAtIsNullOrderByInventoryId(Long applicationId);
+
     List<InventoryDeduction> findByScheduleIdAndRestoredAtIsNullOrderByInventoryId(Long scheduleId);
 }

@@ -7,6 +7,8 @@ import com.misterworld.server.travelapplication.dto.TravelApplicationRequest;
 import com.misterworld.server.travelapplication.dto.TravelParticipantRequest;
 import com.misterworld.server.travelapplication.entity.ParticipantType;
 import com.misterworld.server.travelapplication.service.TravelApplicationService;
+import com.misterworld.server.travelapplication.service.MockPaymentService;
+import com.misterworld.server.notification.entity.NotificationType;
 import com.misterworld.server.domain.TravelOption;
 import com.misterworld.server.repository.TravelOptionRepository;
 import com.misterworld.server.domain.ScheduleStatus;
@@ -32,10 +34,11 @@ class SmsTestDataTests {
     @Autowired TravelScheduleRepository schedules;
     @Autowired TravelOptionRepository options;
     @Autowired TravelApplicationService bookings;
+    @Autowired MockPaymentService payments;
     @Autowired SmsNotificationRepository notifications;
 
     @Test
-    void oneThreePersonBookingConfirmsDepartureAndQueuesOneText() {
+    void oneThreePersonPaymentConfirmsDepartureAndQueuesOneConfirmationText() {
         var customer = members.findByEmail(SampleDataInitializer.SMS_CUSTOMER).orElseThrow();
         assertThat(encoder.matches(SampleDataInitializer.PASSWORD, customer.getPassword())).isTrue();
         assertThat(members.count()).isEqualTo(1);
@@ -55,11 +58,14 @@ class SmsTestDataTests {
         var request = new TravelApplicationRequest(productId, scheduleId, "CLASSIC", optionIds, 3,
             travelers, "sms-test-booking", null);
         var quote = bookings.quote(customer.getId(), request);
-        bookings.apply(customer.getId(), new TravelApplicationRequest(productId, scheduleId, "CLASSIC", optionIds, 3,
+        var reservation = bookings.apply(customer.getId(), new TravelApplicationRequest(productId, scheduleId, "CLASSIC", optionIds, 3,
             travelers, request.requestKey(), quote.quoteToken()));
 
+        assertThat(schedules.findById(scheduleId).orElseThrow().getStatus()).isEqualTo(ScheduleStatus.RECRUITING_SCHEDULE);
+        assertThat(notifications.findAll()).isEmpty();
+        payments.completePayment(reservation.application().id(), customer.getId());
         assertThat(schedules.findById(scheduleId).orElseThrow().getStatus()).isEqualTo(ScheduleStatus.CONFIRMED_SCHEDULE);
-        assertThat(notifications.findAll()).singleElement().satisfies(notification -> {
+        assertThat(notifications.findAll()).filteredOn(n -> n.getNotificationType() == NotificationType.DEPARTURE_CONFIRMED).singleElement().satisfies(notification -> {
             assertThat(notification.getMessage()).isEqualTo("출발확정");
             assertThat(notification.getRecipientNumber()).isEqualTo("01012345678");
         });

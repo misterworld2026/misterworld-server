@@ -3,8 +3,6 @@ package com.misterworld.server.travelapplication.service;
 import com.misterworld.server.common.BusinessException;
 import com.misterworld.server.inventory.service.ItemInventoryService;
 import com.misterworld.server.member.repository.MemberRepository;
-import com.misterworld.server.notification.entity.NotificationType;
-import com.misterworld.server.notification.service.SmsNotificationService;
 import com.misterworld.server.travelapplication.dto.ApplicationResponse;
 import com.misterworld.server.travelapplication.dto.TravelApplicationRequest;
 import com.misterworld.server.travelapplication.dto.TravelApplicationChangeRequest;
@@ -47,7 +45,6 @@ public class TravelApplicationService {
     private final TravelProductService productService;
     private final TravelScheduleRepository scheduleRepository;
     private final TravelScheduleService schedules;
-    private final SmsNotificationService notifications;
     private final ItemInventoryService inventory;
     private final BookingPolicy policy;
     private final BookingQuoteSigner signer;
@@ -219,9 +216,7 @@ public class TravelApplicationService {
         application.setBasePrice(price.basePrice()); application.setAdditionalOptionPrice(price.additionalOptionPrice());
         application.setDiscountRate(price.discountRate()); application.setDiscountAmount(price.discountAmount());
         application.setTotalPrice(price.totalPrice());
-        boolean alreadyConfirmed=schedule.getStatus()==ScheduleStatus.CONFIRMED_SCHEDULE;
-        application.setStatus(alreadyConfirmed ? ApplicationStatus.CONFIRMED :
-            ApplicationStatus.PENDING);
+        application.setStatus(ApplicationStatus.PENDING);
         application.setAppliedAt(java.time.LocalDateTime.ofInstant(clock.instant(),java.time.ZoneOffset.UTC));
         application.setRequestKey(request.requestKey()); application.setRequestHash(requestHash);
         applications.saveAndFlush(application);
@@ -230,14 +225,6 @@ public class TravelApplicationService {
             savedParticipant.setTravelApplication(application); savedParticipant.setName(participant.name());
             savedParticipant.setPhoneNumber(participant.phoneNumber()); savedParticipant.setBirthDate(participant.birthDate());
             savedParticipant.setParticipantType(participant.participantType()); participants.save(savedParticipant);
-        }
-        schedules.updateApplicantCount(request.scheduleId());
-        if(alreadyConfirmed) {
-            inventory.deductForConfirmedApplicants(request.scheduleId(), product.getId(), request.applicantCount());
-            notifications.sendConfirmationNotification(application);
-        }
-        else if (!schedules.checkDepartureCondition(request.scheduleId())) {
-            notifications.createNotification(application, NotificationType.APPLICATION_COMPLETED);
         }
         return response(application);
     }
@@ -316,12 +303,14 @@ public class TravelApplicationService {
         var application=applications.findByIdAndMemberId(applicationId,memberId).orElseThrow(BusinessException::notFound);
         entityManager.refresh(application);
         if(application.getStatus()==ApplicationStatus.CANCELLED) return;
-        if(application.getStatus()!=ApplicationStatus.PENDING ||
-            (schedule.getStatus()!=ScheduleStatus.RECRUITING_SCHEDULE &&
-             schedule.getStatus()!=ScheduleStatus.CLOSED_SCHEDULE))
-            throw new BusinessException(409,"CANCELLATION_NOT_ALLOWED","출발 확정 전 대기 신청만 취소할 수 있습니다.");
+        if ((schedule.getStatus() != ScheduleStatus.RECRUITING_SCHEDULE
+                && schedule.getStatus() != ScheduleStatus.CLOSED_SCHEDULE
+                && schedule.getStatus() != ScheduleStatus.CONFIRMED_SCHEDULE)
+                || !schedule.getDepartureDate().isAfter(policy.today(clock)))
+            throw new BusinessException(409, "CANCELLATION_NOT_ALLOWED", "출발 전 예약만 취소할 수 있습니다.");
         if(!policy.cancelAfterDeadline() && !policy.withinDeadline(schedule.getDepartureDate(),clock))
             throw new BusinessException(409,"CANCELLATION_NOT_ALLOWED","신청 마감 후에는 취소할 수 없습니다.");
+        inventory.restoreForCancelledApplication(applicationId);
         application.setStatus(ApplicationStatus.CANCELLED);
         application.setCancelledAt(java.time.LocalDateTime.ofInstant(clock.instant(),java.time.ZoneOffset.UTC));
         schedules.updateApplicantCount(schedule.getTravelScheduleId());

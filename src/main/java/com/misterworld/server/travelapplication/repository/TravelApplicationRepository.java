@@ -1,6 +1,7 @@
 package com.misterworld.server.travelapplication.repository;
 
 import com.misterworld.server.travelapplication.entity.ApplicationStatus;
+import com.misterworld.server.travelapplication.entity.PaymentStatus;
 import com.misterworld.server.travelapplication.entity.TravelApplication;
 import com.misterworld.server.domain.ScheduleStatus;
 
@@ -33,7 +34,7 @@ public interface TravelApplicationRepository extends JpaRepository<TravelApplica
     List<TravelApplication> findValidApplicationsByScheduleId(@Param("scheduleId") Long scheduleId);
 
     @EntityGraph(attributePaths={"travelSchedule", "travelSchedule.travelProduct", "member"})
-    @Query("select a from TravelApplication a where a.travelSchedule.travelScheduleId=:scheduleId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED order by a.id")
+    @Query("select a from TravelApplication a where a.travelSchedule.travelScheduleId=:scheduleId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.paymentStatus=com.misterworld.server.travelapplication.entity.PaymentStatus.PAID order by a.id")
     List<TravelApplication> findNotificationTargets(@Param("scheduleId") Long scheduleId);
 
     @Query("select count(distinct a.travelSchedule.travelScheduleId) from TravelApplication a where a.member.id=:memberId and a.status=com.misterworld.server.travelapplication.entity.ApplicationStatus.CONFIRMED and a.travelSchedule.status=com.misterworld.server.domain.ScheduleStatus.COMPLETED_SCHEDULE")
@@ -44,7 +45,7 @@ public interface TravelApplicationRepository extends JpaRepository<TravelApplica
 
     default void confirmPendingApplications(Long scheduleId) {
         findValidApplicationsByScheduleId(scheduleId).stream()
-            .filter(a -> a.getStatus()==ApplicationStatus.PENDING)
+            .filter(a -> a.getStatus()==ApplicationStatus.PENDING && a.getPaymentStatus()==PaymentStatus.PAID)
             .forEach(a -> a.setStatus(ApplicationStatus.CONFIRMED));
     }
 }

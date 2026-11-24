@@ -2,6 +2,7 @@ package com.misterworld.server.travelschedule.service;
 
 import com.misterworld.server.common.BusinessException;
 import com.misterworld.server.inventory.service.ItemInventoryService;
+import com.misterworld.server.travelapplication.entity.PaymentStatus;
 import com.misterworld.server.notification.entity.NotificationType;
 import com.misterworld.server.notification.service.SmsNotificationService;
 import com.misterworld.server.travelapplication.entity.ApplicationStatus;
@@ -137,13 +138,18 @@ public class TravelScheduleService {
         schedule.setApplicantCount(calculateValidApplicantCount(applications.findValidApplicationsByScheduleId(scheduleId)));
     }
     public int calculateValidApplicantCount(java.util.List<TravelApplication> applications) {
-        return applications.stream().mapToInt(a -> a.getStatus()==ApplicationStatus.CANCELLED ? 0 : a.getApplicantCount()).sum();
+        return applications.stream().filter(this::isPaidApplication).mapToInt(TravelApplication::getApplicantCount).sum();
     }
+    private boolean isPaidApplication(TravelApplication application) {
+        return application.getStatus() != ApplicationStatus.CANCELLED
+            && application.getPaymentStatus() == PaymentStatus.PAID;
+    }
+
     public boolean isDepartureConditionMet(TravelSchedule schedule,
             java.util.List<TravelApplication> applications) {
         int total=calculateValidApplicantCount(applications);
         return "허니문".equals(schedule.getTravelProduct().getTheme()) ? total>=4 &&
-            applications.stream().filter(a -> a.getStatus()!=ApplicationStatus.CANCELLED)
+            applications.stream().filter(this::isPaidApplication)
                 .allMatch(a -> a.getApplicantCount()%2==0) : total>=3;
     }
     @Transactional
@@ -152,8 +158,6 @@ public class TravelScheduleService {
         var validApplications = applications.findValidApplicationsByScheduleId(scheduleId);
         if(schedule.getStatus()!=ScheduleStatus.RECRUITING_SCHEDULE ||
             !isDepartureConditionMet(schedule,validApplications)) return false;
-        inventory.deductForConfirmedApplicants(scheduleId, schedule.getTravelProduct().getId(),
-            calculateValidApplicantCount(validApplications));
         confirmDeparture(schedule); confirmPendingApplications(scheduleId);
         notifications.sendDepartureNotifications(scheduleId); return true;
     }

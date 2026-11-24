@@ -23,6 +23,9 @@ public class InventoryDeduction {
     @Column(name = "여행일정_ID", nullable = false)
     private Long scheduleId;
 
+    @Column(name = "여행신청_ID")
+    private Long applicationId;
+
     @Column(name = "물품재고_ID", nullable = false)
     private Long inventoryId;
 
