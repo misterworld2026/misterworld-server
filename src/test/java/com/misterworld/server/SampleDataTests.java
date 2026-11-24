@@ -27,7 +27,9 @@ class SampleDataTests {
 
     @Test void createsCoherentDemoDataAndRepeatedInitializationDoesNotDuplicateIt() throws Exception {
         assertThat(members.count()).isEqualTo(4);assertThat(products.count()).isEqualTo(4);
-        assertThat(options.count()).isEqualTo(38);assertThat(schedules.count()).isEqualTo(10);
+        assertThat(options.count()).isEqualTo(42);assertThat(schedules.count()).isEqualTo(10);
+        assertThat(options.findAll()).extracting(option -> option.getName())
+            .contains("커피 1포트", "샴페인 1병 추가");
         assertThat(applications.count()).isEqualTo(5);assertThat(participants.count()).isEqualTo(11);
         assertThat(notifications.count()).isEqualTo(1);
         var loyal=members.findByEmail(SampleDataInitializer.LOYAL).orElseThrow();

@@ -143,6 +143,12 @@ public class SampleDataInitializer implements ApplicationRunner {
         options.add(new TravelOptionRequest(null,"EXTRA","추가 샴페인","GRAND",30000,
             "프리미엄에는 기본 포함되어 선택 불가",null,restricted?List.of("GRAND"):List.of("CLASSIC","GRAND"),"CHAMPAGNE"));
         options.add(new TravelOptionRequest(null,"EXTRA","커피","GRAND",5000,"샘플 추가 음료",null,grades,"COFFEE"));
+        if (Set.of("허니문", "트레킹").contains(theme)) {
+            options.add(new TravelOptionRequest(null,"EXTRA","커피 1포트","GRAND",5000,
+                "고정 1포트 추가",null,List.of("GRAND","PREMIUM"),"COFFEE"));
+            options.add(new TravelOptionRequest(null,"EXTRA","샴페인 1병 추가","GRAND",30000,
+                "기본 제공분과 별도 1병",null,List.of("GRAND","PREMIUM"),"CHAMPAGNE"));
+        }
         int classic=switch(theme){case "골프"->450000;case "트레킹"->250000;default->0;};
         int grand=switch(theme){case "허니문"->900000;case "효도"->650000;case "골프"->650000;default->400000;};
         int premium=switch(theme){case "허니문"->1300000;case "효도","골프"->950000;default->650000;};

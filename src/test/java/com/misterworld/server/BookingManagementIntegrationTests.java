@@ -163,6 +163,10 @@ class BookingManagementIntegrationTests {
     HttpResponse<String> book(int count,String key) throws Exception {
         return call("POST","/api/reservations",body(count,key,quote(count,key)),token);
     }
+    String changeBody(String grade,List<Long> ids,String quoteToken) {
+        return "{\"grade\":\""+grade+"\",\"optionIds\":"+ids+
+            (quoteToken==null?"":",\"quoteToken\":\""+quoteToken+"\"")+"}";
+    }
     long id(HttpResponse<String> r) {assertThat(r.statusCode()).as(r.body()).isEqualTo(201);return ((Number)JsonPath.read(r.body(),"$.application.id")).longValue();}
     void error(HttpResponse<String> r,int status,String code) {
         assertThat(r.statusCode()).as(r.body()).isEqualTo(status);
@@ -208,6 +212,85 @@ class BookingManagementIntegrationTests {
         assertThat(call("PUT","/api/my/applications/"+applicationId+"/cancel",null,token).statusCode()).isEqualTo(200);
         error(call("POST",path,null,token),409,"PAYMENT_NOT_ALLOWED");
         assertThat(applications.findById(applicationId).orElseThrow().getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+    }
+
+    @Test void confirmedUnpaidReservationCanChangeGradeAndOptionsWithFreshQuote() throws Exception {
+        stock(4);
+        long applicationId=id(book(3,"change-three-people"));
+        var alternate=new TravelOption();alternate.setTravelProduct(product);alternate.setType("MEAL");
+        alternate.setName("현지식 레스토랑");alternate.setGrade("GRAND");
+        alternate.setAllowedTourGrades("GRAND");alternate.setAdditionalPrice(11);
+        options.saveAndFlush(alternate);
+        var coffee=new TravelOption();coffee.setTravelProduct(product);coffee.setType("EXTRA");
+        coffee.setName("커피 1포트");coffee.setGrade("GRAND");coffee.setAllowedTourGrades("GRAND");
+        coffee.setBenefitCode("COFFEE");coffee.setAdditionalPrice(5);options.saveAndFlush(coffee);
+        var changedIds=new ArrayList<>(optionIds(product,"GRAND"));
+        changedIds.removeIf(id -> options.findById(id).orElseThrow().getType().equals("MEAL"));
+        changedIds.add(alternate.getId());changedIds.add(coffee.getId());
+        String path="/api/my/applications/"+applicationId+"/change";
+        var quoted=call("POST",path+"/quote",changeBody("GRAND",changedIds,null),token);
+        assertThat(quoted.statusCode()).as(quoted.body()).isEqualTo(200);
+        assertThat((Number)JsonPath.read(quoted.body(),"$.price.totalPrice")).isEqualTo(651);
+        String signed=JsonPath.read(quoted.body(),"$.quoteToken");
+        long beforeParticipants=participants.count(),beforeMessages=notifications.count();
+        error(call("PUT",path,changeBody("GRAND",changedIds,null),token),400,"INVALID_QUOTE");
+        var changed=call("PUT",path,changeBody("GRAND",changedIds,signed),token);
+        assertThat(changed.statusCode()).as(changed.body()).isEqualTo(200);
+        assertThat((String)JsonPath.read(changed.body(),"$.tourGrade")).isEqualTo("GRAND");
+        assertThat((String)JsonPath.read(changed.body(),"$.mealOption")).isEqualTo("현지식 레스토랑");
+        assertThat((String)JsonPath.read(changed.body(),"$.extraOption")).isEqualTo("커피 1포트");
+        assertThat((Number)JsonPath.read(changed.body(),"$.totalPrice")).isEqualTo(651);
+        assertThat((Number)JsonPath.read(changed.body(),"$.applicantCount")).isEqualTo(3);
+        assertThat(participants.count()).isEqualTo(beforeParticipants);
+        assertThat(notifications.count()).isEqualTo(beforeMessages);
+        assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
+            .isEqualTo(ScheduleStatus.CONFIRMED_SCHEDULE);
+        error(call("PUT",path,changeBody("GRAND",changedIds,signed),token),409,"QUOTE_CHANGED");
+        error(call("POST",path+"/quote",changeBody("GRAND",changedIds,null),staffToken),403,"FORBIDDEN");
+        error(call("POST",path+"/quote",changeBody("GRAND",changedIds,null),token(member(Role.MEMBER))),404,"NOT_FOUND");
+        assertThat(inventory.findAll().stream().filter(i -> i.getTravelProduct().getId().equals(product.getId()))
+            .allMatch(i -> i.getQuantity()==1)).isTrue();
+    }
+
+    @Test void paidReservationCannotBeChanged() throws Exception {
+        long applicationId=id(book(1,"paid-change-rejected"));
+        String path="/api/my/applications/"+applicationId+"/change";
+        assertThat(call("POST","/api/my/applications/"+applicationId+"/payment",null,token).statusCode()).isEqualTo(200);
+        error(call("POST",path+"/quote",changeBody("GRAND",optionIds(product,"GRAND"),null),token),409,"CHANGE_NOT_ALLOWED");
+        error(call("PUT",path,changeBody("GRAND",optionIds(product,"GRAND"),null),token),409,"CHANGE_NOT_ALLOWED");
+    }
+
+    @Test void confirmationDeductionIsNotTakenAgainAtStaffStart() throws Exception {
+        var item=stock(3);
+        id(book(3,"legacy-stock"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/start",null,staffToken).statusCode()).isEqualTo(200);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getQuantity()).isEqualTo(3);
+    }
+
+    @Test void confirmedScheduleDeductsOnlyNewApplicantsBeforeStart() throws Exception {
+        var item=stock(5);
+        id(book(3,"legacy-stock-before-late-booking"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(2);
+        id(book(1,"legacy-stock-late-booking"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+
+        var start=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/start",null,staffToken);
+        assertThat(start.statusCode()).as(start.body()).isEqualTo(200);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getQuantity()).isEqualTo(4);
+    }
+
+    @Test void automaticStartDoesNotDeductConfirmedInventoryAgain() throws Exception {
+        var item=stock(3);
+        id(book(3,"automatic-start-stock"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        clock.value.set(Instant.parse("2026-12-03T15:00:00Z"));
+        scheduleStatusScheduler.advanceDueSchedules();
+        assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
+            .isEqualTo(ScheduleStatus.IN_PROGRESS_SCHEDULE);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
     }
 
     @Test void concurrentMockPaymentRecordsOneReceipt() throws Exception {
@@ -347,33 +430,33 @@ class BookingManagementIntegrationTests {
         assertThat(messages(third)).extracting(SmsNotification::getMessage).containsExactly("출발확정");
         error(call("PUT","/api/my/applications/"+first+"/cancel",null,token),409,"CANCELLATION_NOT_ALLOWED");
     }
-    @Test void confirmationAndLaterBookingsDeductInventoryOncePerApplicant() throws Exception {
+    @Test void staffStartDoesNotDeductConfirmedApplicantsAgain() throws Exception {
         var item=stock(4);
         id(book(2,"stock-pending"));
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
         id(book(1,"stock-confirm"));
-        var afterConfirmation=inventory.findById(item.getId()).orElseThrow();
-        assertThat(afterConfirmation.getQuantity()).isEqualTo(1);
-        assertThat(afterConfirmation.getStatus()).isEqualTo(InventoryStatus.LOW_STOCK);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(1);
         id(book(1,"stock-late"));
-        var afterLateBooking=inventory.findById(item.getId()).orElseThrow();
-        assertThat(afterLateBooking.getQuantity()).isZero();
-        assertThat(afterLateBooking.getStatus()).isEqualTo(InventoryStatus.OUT_OF_STOCK);
-        error(book(1,"stock-sold-out"),409,"INSUFFICIENT_STOCK");
-        assertThat(valid()).hasSize(3);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(valid()).hasSize(3);
+        String path="/api/admin/schedules/"+schedule.getTravelScheduleId();
+        error(call("PUT",path+"/start",null,token),403,"FORBIDDEN");
+        var started=call("PUT",path+"/start",null,staffToken);
+        assertThat(started.statusCode()).as(started.body()).isEqualTo(200);
+        assertThat((String)JsonPath.read(started.body(),"$.status")).isEqualTo("IN_PROGRESS_SCHEDULE");
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(inventory.findById(item.getId()).orElseThrow().getStatus()).isEqualTo(InventoryStatus.OUT_OF_STOCK);
         assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).singleElement()
             .extracting(d -> d.getQuantity()).isEqualTo(4);
-        var cancellation=call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken);
-        assertThat(cancellation.statusCode()).as(cancellation.body()).isEqualTo(200);
-        var restored=inventory.findById(item.getId()).orElseThrow();
-        assertThat(restored.getQuantity()).isEqualTo(4);
-        assertThat(restored.getStatus()).isEqualTo(InventoryStatus.LOW_STOCK);
-        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getRestoredAt()).isNotNull();
-        assertThat(call("PUT","/api/admin/schedules/"+schedule.getTravelScheduleId()+"/cancel",null,staffToken).statusCode()).isEqualTo(200);
-        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(4);
+        assertThat(call("PUT",path+"/start",null,staffToken).statusCode()).isEqualTo(200);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        error(call("PUT",path+"/cancel",null,staffToken),409,"INVALID_STATE");
+        var completed=call("PUT",path+"/complete",null,staffToken);
+        assertThat((String)JsonPath.read(completed.body(),"$.status")).isEqualTo("COMPLETED_SCHEDULE");
+        assertThat(call("PUT",path+"/complete",null,staffToken).statusCode()).isEqualTo(200);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
     }
-    @Test void cancellationDoesNotRestoreItemsAddedAfterConfirmation() throws Exception {
+    @Test void cancellingAfterConfirmationRestoresDeductedInventory() throws Exception {
         var original=stock(5);
         id(book(3,"stock-before-new-item"));
         assertThat(inventory.findById(original.getId()).orElseThrow().getQuantity()).isEqualTo(2);
@@ -384,17 +467,35 @@ class BookingManagementIntegrationTests {
         assertThat(cancellation.statusCode()).as(cancellation.body()).isEqualTo(200);
         assertThat(inventory.findById(original.getId()).orElseThrow().getQuantity()).isEqualTo(5);
         assertThat(inventory.findById(addedLater.getId()).orElseThrow().getQuantity()).isEqualTo(7);
-        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).hasSize(1);
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId())).singleElement()
+            .satisfies(record -> assertThat(record.getRestoredAt()).isNotNull());
     }
-    @Test void insufficientInventoryRollsBackDepartureConfirmation() throws Exception {
+    @Test void insufficientInventoryBlocksConfirmationAndCanBeReplenished() throws Exception {
         var item=stock(2);
         id(book(2,"stock-short-first"));
         error(book(1,"stock-short-threshold"),409,"INSUFFICIENT_STOCK");
         assertThat(valid()).hasSize(1);
-        assertThat(valid().getFirst().getStatus()).isEqualTo(ApplicationStatus.PENDING);
+        assertThat(valid()).extracting(TravelApplication::getStatus).containsOnly(ApplicationStatus.PENDING);
         assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
             .isEqualTo(ScheduleStatus.RECRUITING_SCHEDULE);
         assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isEqualTo(2);
+        item.setQuantity(3);inventory.saveAndFlush(item);
+        id(book(1,"stock-short-threshold"));
+        assertThat(schedules.findById(schedule.getTravelScheduleId()).orElseThrow().getStatus())
+            .isEqualTo(ScheduleStatus.CONFIRMED_SCHEDULE);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+    }
+
+    @Test void insufficientInventoryBlocksAdditionalBookingOnConfirmedSchedule() throws Exception {
+        var item=stock(3);
+        id(book(3,"stock-confirmed-base"));
+        error(book(1,"stock-confirmed-extra"),409,"INSUFFICIENT_STOCK");
+        assertThat(valid()).hasSize(1);
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        item.setQuantity(1);inventory.saveAndFlush(item);
+        id(book(1,"stock-confirmed-extra"));
+        assertThat(inventory.findById(item.getId()).orElseThrow().getQuantity()).isZero();
+        assertThat(deductions.findByScheduleId(schedule.getTravelScheduleId()).getFirst().getQuantity()).isEqualTo(4);
     }
     @Test void pendingCancellationAndClosedUnconfirmedCancellationPreserveRows() throws Exception {
         long first=id(book(1,"pending-cancel"));long travelers=participants.count();
@@ -670,7 +771,7 @@ class BookingManagementIntegrationTests {
         assertThat((Number)JsonPath.read(r.body(),"$.price.discountAmount")).isEqualTo(11);
         assertThat((Number)JsonPath.read(r.body(),"$.price.totalPrice")).isEqualTo(94);
     }
-    @Test void premiumChampagneIsHiddenAndRejectedWhileClassicCanAddIt() throws Exception {
+    @Test void champagneCanBeAddedToPremiumWhenTheProductOffersIt() throws Exception {
         var champagne=new TravelOption();champagne.setTravelProduct(product);champagne.setType("EXTRA");champagne.setName("기념 음료");
         champagne.setGrade("PREMIUM");champagne.setBenefitCode("CHAMPAGNE");champagne.setAllowedTourGrades("CLASSIC,PREMIUM");champagne.setAdditionalPrice(30);options.saveAndFlush(champagne);
         var classic=new ArrayList<>(selected);classic.add(champagne.getId());selected=classic;
@@ -678,11 +779,11 @@ class BookingManagementIntegrationTests {
         var premiumIds=new ArrayList<>(optionIds(product,"PREMIUM"));premiumIds.add(champagne.getId());
         String premium=body(1,"premium-champagne",null).replace("\"grade\":\"CLASSIC\"","\"grade\":\"PREMIUM\"")
             .replace(selected.toString(),premiumIds.toString());
-        error(call("POST","/api/reservations/quote",premium,token),400,"INVALID_REQUEST");
+        assertThat(call("POST","/api/reservations/quote",premium,token).statusCode()).isEqualTo(200);
         var detail=call("GET","/api/tours/"+product.getId(),null,token);
-        assertThat((List<Number>)JsonPath.read(detail.body(),"$.allowedGrades[2].allowedOptions[*].id")).extracting(Number::longValue).doesNotContain(champagne.getId());
+        assertThat((List<Number>)JsonPath.read(detail.body(),"$.allowedGrades[2].allowedOptions[*].id")).extracting(Number::longValue).contains(champagne.getId());
         String create=productBody(false);
-        error(call("POST","/api/admin/tours",create,staffToken),400,"INVALID_REQUEST");
+        assertThat(call("POST","/api/admin/tours",create,staffToken).statusCode()).isEqualTo(201);
     }
 
 }

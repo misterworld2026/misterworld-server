@@ -112,7 +112,7 @@ public class VoicePreviewService {
                         || s.getStatus() == ScheduleStatus.CONFIRMED_SCHEDULE)
                 .filter(s -> s.getApplicantCount() == null || s.getApplicantCount() < capacity(s.getTravelProduct().getTheme()))
                 .map(s -> new ScheduleCandidate(s.getTravelScheduleId(), s.getTravelProduct().getId(), s.getDepartureDate())).toList();
-        // Reuse booking policy, including default options and premium champagne exclusion.
+        // Reuse the booking policy so voice and GUI expose the same allowed options.
         java.util.Map<Long, List<String>> allowedGradesByOption = new java.util.HashMap<>();
         for (var product : registeredProducts) {
             var productOptions = registeredOptions.stream()
@@ -257,10 +257,13 @@ public class VoicePreviewService {
                                 Function<T, Long> id, Predicate<T> allowed) {
         Match early = early(input); if (early != null) return early;
         String spoken = normalize(input.value());
-        List<Long> matches = rows.stream().filter(allowed).filter(row -> {
-            String candidate = normalize(name.apply(row));
-            return !spoken.isEmpty() && (candidate.contains(spoken) || spoken.contains(candidate));
-        }).map(id).toList();
+        List<T> candidates = rows.stream().filter(allowed).toList();
+        List<Long> exact = candidates.stream().filter(row -> normalize(name.apply(row)).equals(spoken)).map(id).toList();
+        if (!exact.isEmpty()) return matched(input.value(), exact);
+        List<Long> matches = candidates.stream().filter(row -> !spoken.isEmpty()
+                && normalize(name.apply(row)).contains(spoken)).map(id).toList();
+        if (matches.isEmpty()) matches = candidates.stream().filter(row -> !spoken.isEmpty()
+                && spoken.contains(normalize(name.apply(row)))).map(id).toList();
         return matched(input.value(), matches);
     }
 

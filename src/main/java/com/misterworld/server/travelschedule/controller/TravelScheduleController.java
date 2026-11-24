@@ -54,4 +54,14 @@ public class TravelScheduleController {
         return service.cancelSchedule(scheduleId);
     }
 
+    @PutMapping("/api/admin/schedules/{scheduleId}/start")
+    public TravelScheduleResponse startTravel(@PathVariable Long scheduleId) {
+        return service.startTravel(scheduleId);
+    }
+
+    @PutMapping("/api/admin/schedules/{scheduleId}/complete")
+    public TravelScheduleResponse completeTravel(@PathVariable Long scheduleId) {
+        return service.completeTravel(scheduleId);
+    }
+
 }

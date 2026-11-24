@@ -43,7 +43,7 @@ public class SecurityConfig {
                     "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/voice/**").hasRole("MEMBER")
                 .requestMatchers("/api/admin/**").hasRole("STAFF")
-                .requestMatchers("/api/reservations", "/api/reservations/quote", "/api/my/applications/*/cancel", "/api/my/applications/*/payment").hasRole("MEMBER")
+                .requestMatchers("/api/reservations", "/api/reservations/quote", "/api/my/applications/*/cancel", "/api/my/applications/*/payment", "/api/my/applications/*/change", "/api/my/applications/*/change/quote").hasRole("MEMBER")
                 .anyRequest().authenticated())
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((req, res, e) -> {

@@ -101,8 +101,6 @@ public class TravelProductService {
             require(!"EXTRA".equals(o.type()) || Set.of("CHAMPAGNE","COFFEE","OTHER").contains(o.benefitCode()==null?"":o.benefitCode()),
                 "추가 옵션의 benefitCode를 등록해야 합니다.");
             require("EXTRA".equals(o.type()) || o.benefitCode()==null,"혜택 코드는 추가 옵션에만 지정합니다.");
-            require(!"CHAMPAGNE".equals(o.benefitCode()) || o.allowedTourGrades()==null || !o.allowedTourGrades().contains("PREMIUM"),
-                "프리미엄에는 별도 샴페인 옵션을 제공하지 않습니다.");
             if(o.allowedTourGrades()!=null) {
                 require(new HashSet<>(o.allowedTourGrades()).size()==o.allowedTourGrades().size(),"중복 허용 등급입니다.");
                 o.allowedTourGrades().forEach(grade -> validateGrade(request.theme(),grade));
@@ -166,7 +164,6 @@ public class TravelProductService {
             validateGrade(product.getTheme(), option.getGrade());
             if("EXTRA".equals(option.getType())) {
                 if(option.getBenefitCode()==null) throw new BusinessException(409,"CONFIGURATION_INCOMPLETE","추가 옵션 혜택 코드가 필요합니다.");
-                require(!"PREMIUM".equals(grade) || !"CHAMPAGNE".equals(option.getBenefitCode()),"프리미엄에는 샴페인이 기본 포함되어 있습니다.");
             }
             require(allowedIds.contains(option.getId()), "해당 투어 등급에서 허용하지 않는 옵션입니다.");
             if (!option.getType().equals("EXTRA"))
@@ -190,7 +187,6 @@ public class TravelProductService {
                     .equals(java.util.Set.of("HOTEL", "TRANSPORT", "MEAL"));
                 var allowed = options.stream()
                     .filter(o -> !"EXTRA".equals(o.type()) || o.benefitCode()!=null)
-                    .filter(o -> !"PREMIUM".equals(grade) || !"CHAMPAGNE".equals(o.benefitCode()))
                     .filter(o -> grade.equals(o.defaultForGrade()) || o.allowedTourGrades().contains(grade)).toList();
                 return new TravelGradeConfiguration(grade, price(product, grade), defaults, allowed, ready);
             }).toList();

@@ -163,6 +163,35 @@ class VoiceServiceTest {
         assertNull(result.selection().optionIds().hotel());
     }
 
+    @Test
+    void choosesTheSpecificFixedDrinkInsteadOfAnOverlappingShortName() {
+        TravelProduct product = products.findAll().getFirst();
+        TravelOption generic = new TravelOption();
+        ReflectionTestUtils.setField(generic, "id", 30L);
+        generic.setTravelProduct(product);
+        generic.setType("EXTRA");
+        generic.setName("커피");
+        generic.setGrade("GRAND");
+        generic.setBenefitCode("COFFEE");
+        generic.setAllowedTourGrades("GRAND");
+        TravelOption fixed = new TravelOption();
+        ReflectionTestUtils.setField(fixed, "id", 31L);
+        fixed.setTravelProduct(product);
+        fixed.setType("EXTRA");
+        fixed.setName("커피 1포트");
+        fixed.setGrade("GRAND");
+        fixed.setBenefitCode("COFFEE");
+        fixed.setAllowedTourGrades("GRAND");
+        when(options.findAll()).thenReturn(List.of(generic, fixed));
+        when(python.interpret(any())).thenReturn(new InternalResponse(new InterpretedFields(
+                omitted(), omitted(), omitted(), omitted(), omitted(), omitted(), List.of(resolved("커피 1포트")))));
+
+        var result = service.interpret(new InterpretationRequest("커피 1포트 추가", new Selection(
+                1L, 10L, "GRAND", emptyOptions())));
+        assertEquals(List.of(31L), result.selection().optionIds().extras());
+        assertEquals(Status.MATCHED, result.fields().extras().getFirst().status());
+    }
+
     private OptionIds emptyOptions() { return new OptionIds(null, null, null, List.of()); }
 
     private InterpretationRequest request() {

@@ -1,11 +1,13 @@
 package com.misterworld.server.travelapplication.service;
 
 import com.misterworld.server.common.BusinessException;
+import com.misterworld.server.inventory.service.ItemInventoryService;
 import com.misterworld.server.member.repository.MemberRepository;
 import com.misterworld.server.notification.entity.NotificationType;
 import com.misterworld.server.notification.service.SmsNotificationService;
 import com.misterworld.server.travelapplication.dto.ApplicationResponse;
 import com.misterworld.server.travelapplication.dto.TravelApplicationRequest;
+import com.misterworld.server.travelapplication.dto.TravelApplicationChangeRequest;
 import com.misterworld.server.travelapplication.dto.TravelApplicationResponse;
 import com.misterworld.server.travelapplication.dto.TravelHistoryResponse;
 import com.misterworld.server.travelapplication.dto.TravelPriceResponse;
@@ -14,6 +16,7 @@ import com.misterworld.server.travelapplication.entity.ApplicationStatus;
 import com.misterworld.server.travelapplication.entity.ParticipantType;
 import com.misterworld.server.travelapplication.entity.TravelApplication;
 import com.misterworld.server.travelapplication.entity.TravelParticipant;
+import com.misterworld.server.travelapplication.entity.PaymentStatus;
 import com.misterworld.server.travelapplication.repository.TravelApplicationRepository;
 import com.misterworld.server.travelapplication.repository.TravelParticipantRepository;
 import com.misterworld.server.travelproduct.dto.TravelOptionResponse;
@@ -45,6 +48,7 @@ public class TravelApplicationService {
     private final TravelScheduleRepository scheduleRepository;
     private final TravelScheduleService schedules;
     private final SmsNotificationService notifications;
+    private final ItemInventoryService inventory;
     private final BookingPolicy policy;
     private final BookingQuoteSigner signer;
     private final java.time.Clock clock;
@@ -106,6 +110,84 @@ public class TravelApplicationService {
             completedTrips,price,signer.issue(memberId,requestHash(request),selectionHash(selection,price),expiresAt),expiresAt);
     }
 
+    public TravelQuoteResponse quoteChange(Long applicationId, Long memberId,
+            TravelApplicationChangeRequest request) {
+        validateChangeRequest(request);
+        var application = applications.findByIdAndMemberId(applicationId, memberId)
+            .orElseThrow(BusinessException::notFound);
+        var schedule = application.getTravelSchedule();
+        validateChangeAllowed(application, schedule);
+        var selection = selection(schedule.getTravelProduct().getId(), schedule, request.grade(), request.optionIds());
+        var price = discountAtRate(calculatePrice(selection, application.getApplicantCount()), application.getDiscountRate());
+        var expiresAt = clock.instant().plusSeconds(900);
+        return new TravelQuoteResponse(productService.getProduct(schedule.getTravelProduct().getId()),
+            schedules.getScheduleResponse(schedule), request.grade(), application.getApplicantCount(),
+            selection.options().stream().map(TravelOptionResponse::from).toList(),
+            applications.countCompletedTrips(memberId), price,
+            signer.issue(memberId, changeRequestHash(applicationId, request),
+                changeSelectionHash(application, selection, price), expiresAt), expiresAt);
+    }
+
+    @Transactional
+    public ApplicationResponse changeApplication(Long applicationId, Long memberId,
+            TravelApplicationChangeRequest request) {
+        validateChangeRequest(request);
+        Long scheduleId = applicationScheduleLookup.scheduleId(applicationId, memberId);
+        var schedule = scheduleRepository.findByIdForUpdate(scheduleId).orElseThrow(BusinessException::notFound);
+        products.findByIdForUpdate(schedule.getTravelProduct().getId()).orElseThrow(BusinessException::notFound);
+        members.findByIdForUpdate(memberId).orElseThrow(BusinessException::notFound);
+        var application = applications.findByIdAndMemberId(applicationId, memberId)
+            .orElseThrow(BusinessException::notFound);
+        entityManager.refresh(application);
+        validateChangeAllowed(application, schedule);
+        var selection = selection(schedule.getTravelProduct().getId(), schedule, request.grade(), request.optionIds());
+        var price = discountAtRate(calculatePrice(selection, application.getApplicantCount()), application.getDiscountRate());
+        signer.verify(request.quoteToken(), memberId, changeRequestHash(applicationId, request),
+            changeSelectionHash(application, selection, price), clock.instant());
+        application.setTourGrade(request.grade());
+        application.setHotelOption(optionName(selection, "HOTEL"));
+        application.setTransportOption(optionName(selection, "TRANSPORT"));
+        application.setMealOption(optionName(selection, "MEAL"));
+        String extras = selection.options().stream().filter(o -> o.getType().equals("EXTRA"))
+            .map(TravelOption::getName).collect(java.util.stream.Collectors.joining(", "));
+        BusinessException.require(extras.length() <= 2000, "추가 옵션 구성 길이를 초과했습니다.");
+        application.setExtraOption(extras.isEmpty() ? null : extras);
+        application.setBasePrice(price.basePrice());
+        application.setAdditionalOptionPrice(price.additionalOptionPrice());
+        application.setDiscountAmount(price.discountAmount());
+        application.setTotalPrice(price.totalPrice());
+        return ApplicationResponse.from(application);
+    }
+
+    private void validateChangeRequest(TravelApplicationChangeRequest request) {
+        BusinessException.require(request != null && validator.validate(request).isEmpty(),
+            "변경할 등급과 옵션을 확인하세요.");
+    }
+
+    private void validateChangeAllowed(TravelApplication application, TravelSchedule schedule) {
+        if (application.getStatus() == ApplicationStatus.CANCELLED
+                || (schedule.getStatus() != ScheduleStatus.RECRUITING_SCHEDULE
+                    && schedule.getStatus() != ScheduleStatus.CONFIRMED_SCHEDULE)
+                || !policy.withinDeadline(schedule.getDepartureDate(), clock)
+                || application.getPaymentStatus() == PaymentStatus.PAID)
+            throw new BusinessException(409, "CHANGE_NOT_ALLOWED",
+                "결제 전이며 신청 마감 전인 모집·출발 확정 일정만 수정할 수 있습니다.");
+    }
+
+    private String changeRequestHash(Long applicationId, TravelApplicationChangeRequest request) {
+        var text = new StringBuilder(canonical("change", applicationId, request.grade()));
+        request.optionIds().stream().sorted().forEach(id -> text.append(canonical(id)));
+        return signer.hash(text.toString());
+    }
+
+    private String changeSelectionHash(TravelApplication application, Selection selection,
+            TravelPriceResponse price) {
+        return signer.hash(canonical(selectionHash(selection, price), application.getStatus(),
+            application.getPaymentStatus(), application.getTourGrade(), application.getHotelOption(),
+            application.getTransportOption(), application.getMealOption(), application.getExtraOption(),
+            application.getTotalPrice()));
+    }
+
     @Transactional
     public TravelApplicationResponse apply(Long memberId,
             TravelApplicationRequest request) {
@@ -151,7 +233,7 @@ public class TravelApplicationService {
         }
         schedules.updateApplicantCount(request.scheduleId());
         if(alreadyConfirmed) {
-            schedules.deductInventoryForConfirmedApplicants(schedule, request.applicantCount());
+            inventory.deductForConfirmedApplicants(request.scheduleId(), product.getId(), request.applicantCount());
             notifications.sendConfirmationNotification(application);
         }
         else if (!schedules.checkDepartureCondition(request.scheduleId())) {
@@ -166,11 +248,14 @@ public class TravelApplicationService {
     }
     private Selection selection(TravelApplicationRequest request,
             TravelSchedule schedule) {
-        BusinessException.require(schedule.getTravelProduct().getId().equals(request.productId()),"다른 상품의 일정입니다.");
-        var selected=productService.validateSelection(request.productId(),request.grade(),request.optionIds()).stream()
+        return selection(request.productId(), schedule, request.grade(), request.optionIds());
+    }
+    private Selection selection(Long productId, TravelSchedule schedule, String grade, java.util.List<Long> optionIds) {
+        BusinessException.require(schedule.getTravelProduct().getId().equals(productId),"다른 상품의 일정입니다.");
+        var selected=productService.validateSelection(productId,grade,optionIds).stream()
             .sorted(java.util.Comparator.comparing(TravelOption::getType)
                 .thenComparing(TravelOption::getId)).toList();
-        return new Selection(schedule.getTravelProduct(),schedule,request.grade(),selected);
+        return new Selection(schedule.getTravelProduct(),schedule,grade,selected);
     }
     private void validateRequest(TravelApplicationRequest request) {
         BusinessException.require(request!=null && validator.validate(request).isEmpty(),"신청 입력값을 확인하세요.");
@@ -194,7 +279,9 @@ public class TravelApplicationService {
     }
     private TravelPriceResponse discount(
             TravelPriceResponse price,long completedTrips) {
-        int discountRate=applyLoyaltyDiscount(completedTrips);
+        return discountAtRate(price, applyLoyaltyDiscount(completedTrips));
+    }
+    private TravelPriceResponse discountAtRate(TravelPriceResponse price, int discountRate) {
         int discountAmount=java.math.BigDecimal.valueOf(price.totalPrice()).multiply(java.math.BigDecimal.valueOf(discountRate))
             .divide(java.math.BigDecimal.valueOf(100),0,policy.discountRounding()).intValueExact();
         return new TravelPriceResponse(price.basePrice(),price.additionalOptionPrice(),

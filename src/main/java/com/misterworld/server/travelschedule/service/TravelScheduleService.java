@@ -152,19 +152,36 @@ public class TravelScheduleService {
         var validApplications = applications.findValidApplicationsByScheduleId(scheduleId);
         if(schedule.getStatus()!=ScheduleStatus.RECRUITING_SCHEDULE ||
             !isDepartureConditionMet(schedule,validApplications)) return false;
-        deductInventoryForConfirmedApplicants(schedule, calculateValidApplicantCount(validApplications));
+        inventory.deductForConfirmedApplicants(scheduleId, schedule.getTravelProduct().getId(),
+            calculateValidApplicantCount(validApplications));
         confirmDeparture(schedule); confirmPendingApplications(scheduleId);
         notifications.sendDepartureNotifications(scheduleId); return true;
-    }
-    @Transactional
-    public void deductInventoryForConfirmedApplicants(TravelSchedule schedule, int applicantCount) {
-        inventory.deductForConfirmedApplicants(schedule.getTravelScheduleId(), schedule.getTravelProduct().getId(), applicantCount);
     }
     public void confirmDeparture(TravelSchedule schedule) {
         require(schedule.getStatus()==ScheduleStatus.RECRUITING_SCHEDULE,"모집 중 일정만 출발 확정할 수 있습니다.");
         schedule.setStatus(ScheduleStatus.CONFIRMED_SCHEDULE);
     }
     public void confirmPendingApplications(Long scheduleId) { applications.confirmPendingApplications(scheduleId); }
+
+    @Transactional
+    public TravelScheduleResponse startTravel(Long scheduleId) {
+        var schedule = schedules.findByIdForUpdate(scheduleId).orElseThrow(BusinessException::notFound);
+        if (schedule.getStatus() == ScheduleStatus.IN_PROGRESS_SCHEDULE) return getScheduleResponse(schedule);
+        if (schedule.getStatus() != ScheduleStatus.CONFIRMED_SCHEDULE)
+            throw new BusinessException(409, "INVALID_STATE", "출발 확정 일정만 여행을 시작할 수 있습니다.");
+        schedule.setStatus(ScheduleStatus.IN_PROGRESS_SCHEDULE);
+        return getScheduleResponse(schedule);
+    }
+
+    @Transactional
+    public TravelScheduleResponse completeTravel(Long scheduleId) {
+        var schedule = schedules.findByIdForUpdate(scheduleId).orElseThrow(BusinessException::notFound);
+        if (schedule.getStatus() == ScheduleStatus.COMPLETED_SCHEDULE) return getScheduleResponse(schedule);
+        if (schedule.getStatus() != ScheduleStatus.IN_PROGRESS_SCHEDULE)
+            throw new BusinessException(409, "INVALID_STATE", "진행 중 일정만 완료할 수 있습니다.");
+        schedule.setStatus(ScheduleStatus.COMPLETED_SCHEDULE);
+        return getScheduleResponse(schedule);
+    }
 
     @Transactional
     public TravelScheduleResponse cancelSchedule(Long scheduleId) {

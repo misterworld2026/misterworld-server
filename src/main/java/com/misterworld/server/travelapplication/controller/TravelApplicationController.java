@@ -3,6 +3,7 @@ package com.misterworld.server.travelapplication.controller;
 import com.misterworld.server.common.Pages;
 import com.misterworld.server.travelapplication.dto.ApplicationResponse;
 import com.misterworld.server.travelapplication.dto.TravelApplicationRequest;
+import com.misterworld.server.travelapplication.dto.TravelApplicationChangeRequest;
 import com.misterworld.server.travelapplication.dto.TravelApplicationResponse;
 import com.misterworld.server.travelapplication.dto.TravelHistoryResponse;
 import com.misterworld.server.travelapplication.dto.TravelQuoteResponse;
@@ -43,6 +44,18 @@ public class TravelApplicationController {
     @GetMapping("/api/my/applications/{applicationId}")
     public ApplicationResponse getApplication(@PathVariable Long applicationId, Authentication authentication) {
         return service.getApplication(applicationId, Long.valueOf(authentication.getName()));
+    }
+
+    @PostMapping("/api/my/applications/{applicationId}/change/quote")
+    public TravelQuoteResponse quoteChange(@PathVariable Long applicationId, Authentication authentication,
+            @jakarta.validation.Valid @RequestBody TravelApplicationChangeRequest request) {
+        return service.quoteChange(applicationId, Long.valueOf(authentication.getName()), request);
+    }
+
+    @PutMapping("/api/my/applications/{applicationId}/change")
+    public ApplicationResponse changeApplication(@PathVariable Long applicationId, Authentication authentication,
+            @jakarta.validation.Valid @RequestBody TravelApplicationChangeRequest request) {
+        return service.changeApplication(applicationId, Long.valueOf(authentication.getName()), request);
     }
 
     @GetMapping("/api/my/trips/history")

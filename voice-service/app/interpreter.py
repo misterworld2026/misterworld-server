@@ -257,7 +257,9 @@ def _field(value: str | None, name: str, text: str) -> InterpretedField:
     return InterpretedField(state="RESOLVED", value=spoken_value)
 
 
-def parse_interpretation(raw: str, text: str) -> InterpretationResult:
+def parse_interpretation(
+    raw: str, text: str, candidates: dict[str, Any] | None = None
+) -> InterpretationResult:
     clean = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", raw.strip())
     decoded, index = json.JSONDecoder().raw_decode(clean)
     if re.fullmatch(r'[\s}>"]*', clean[index:]) is None:
@@ -282,6 +284,40 @@ def parse_interpretation(raw: str, text: str) -> InterpretationResult:
             fields["extras"].append(InterpretedField(state="RESOLVED", value=spoken_value))
         elif value == "?" and "추가" in text:
             fields["extras"].append(InterpretedField(state="UNRESOLVED", value=None))
+
+    # A drink described as "식사 시 커피 1포트" is an EXTRA when that exact
+    # one-unit drink is registered for the product. Do not invent options.
+    normalized_text = re.sub(r"\s+", "", text)
+    available = (candidates or {}).get("options", [])
+    fixed_drinks = []
+    for option in available if isinstance(available, list) else []:
+        if not isinstance(option, dict) or option.get("type") != "EXTRA":
+            continue
+        name = option.get("name")
+        if not isinstance(name, str):
+            continue
+        spoken_name = re.sub(r"\s+", "", re.sub(r"\s*추가$", "", name))
+        aliases = (spoken_name, spoken_name.replace("1", "한"))
+        if re.fullmatch(r"(?:커피\d+포트|샴페인\d+병)", spoken_name) and any(
+            alias in normalized_text for alias in aliases
+        ):
+            fixed_drinks.append(spoken_name)
+    if fixed_drinks:
+        fixed_drinks.sort(key=len, reverse=True)
+        existing = fields["extras"]
+        fields["extras"] = [field for field in existing if field.state != "RESOLVED" or not any(
+            field.value and (re.sub(r"\s+", "", field.value) in drink or drink in re.sub(r"\s+", "", field.value))
+            for drink in fixed_drinks
+        )]
+        fields["extras"].extend(InterpretedField(state="RESOLVED", value=drink) for drink in fixed_drinks)
+        meal = fields["meal"]
+        meal_candidates = [option.get("name") for option in available if isinstance(option, dict)
+                           and option.get("type") == "MEAL" and isinstance(option.get("name"), str)]
+        actual_meal_mentioned = any(re.sub(r"\s+", "", name) in normalized_text for name in meal_candidates)
+        if not actual_meal_mentioned and (meal.state == "UNRESOLVED" or
+                                          (meal.value and any(re.sub(r"\s+", "", meal.value) in drink
+                                                              for drink in fixed_drinks))):
+            fields["meal"] = InterpretedField(state="NOT_MENTIONED", value=None)
     return InterpretationResult(fields=InterpretedFields(**fields))
 
 
@@ -293,7 +329,7 @@ def interpret_text(request: InterpretRequest) -> InterpretationResult:
         raise InterpretationError(503, "INTERPRETATION_FAILED", "Interpretation failed.") from exc
 
     try:
-        return parse_interpretation(raw, request.text)
+        return parse_interpretation(raw, request.text, request.candidates)
     except Exception as exc:
         logger.warning("Voice model returned an invalid interpretation")
         raise InterpretationError(502, "INVALID_MODEL_OUTPUT", "Invalid interpretation result.") from exc

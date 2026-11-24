@@ -25,6 +25,7 @@ public interface TravelScheduleRepository extends JpaRepository<TravelSchedule, 
     Optional<TravelSchedule> findByIdForUpdate(@Param("scheduleId") Long scheduleId);
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query("""
         update TravelSchedule s set s.status = :next
         where s.status = :current and s.departureDate < :cutoff
@@ -34,6 +35,7 @@ public interface TravelScheduleRepository extends JpaRepository<TravelSchedule, 
                                          @Param("cutoff") LocalDate cutoff);
 
     @Modifying
+    @org.springframework.transaction.annotation.Transactional
     @Query("""
         update TravelSchedule s set s.status = :next
         where s.status in :current and s.arrivalDate < :today
@@ -41,4 +43,7 @@ public interface TravelScheduleRepository extends JpaRepository<TravelSchedule, 
     void transitionEndedSchedules(@Param("current") Set<ScheduleStatus> current,
                                   @Param("next") ScheduleStatus next,
                                   @Param("today") LocalDate today);
+
+    @Query("select s.travelScheduleId from TravelSchedule s where s.status = :status and s.departureDate <= :today order by s.travelScheduleId")
+    List<Long> findDueScheduleIds(@Param("status") ScheduleStatus status, @Param("today") LocalDate today);
 }

@@ -107,6 +107,34 @@ class InterpretOutputTest(unittest.TestCase):
         self.assertEqual(result.fields.grade.value, "GRAND")
         self.assertEqual(result.fields.schedule.value, "3월 1일")
 
+    def test_registered_fixed_drinks_are_extras_even_when_meal_is_mentioned(self) -> None:
+        text = "식사 시 커피 1포트, 샴페인 1병 추가해요"
+        raw = json.dumps({
+            "tour": None, "schedule": None, "grade": None, "hotel": None,
+            "transport": None, "meal": "커피 1포트", "extras": ["샴페인 1병"],
+        }, ensure_ascii=False)
+        fields = parse_interpretation(raw, text, {"options": [
+            {"type": "EXTRA", "name": "커피 1포트"},
+            {"type": "EXTRA", "name": "샴페인 1병 추가"},
+            {"type": "MEAL", "name": "현지식 레스토랑"},
+        ]}).model_dump()["fields"]
+        self.assertEqual(fields["meal"], {"state": "NOT_MENTIONED", "value": None})
+        self.assertEqual(fields["extras"], [
+            {"state": "RESOLVED", "value": "커피1포트"},
+            {"state": "RESOLVED", "value": "샴페인1병"},
+        ])
+
+    def test_spoken_one_unit_drinks_match_registered_numeric_options(self) -> None:
+        raw = json.dumps({
+            "tour": None, "schedule": None, "grade": None, "hotel": None,
+            "transport": None, "meal": None, "extras": [],
+        }, ensure_ascii=False)
+        fields = parse_interpretation(raw, "커피 한 포트와 샴페인 한 병 추가해요", {"options": [
+            {"type": "EXTRA", "name": "커피 1포트"},
+            {"type": "EXTRA", "name": "샴페인 1병 추가"},
+        ]}).model_dump()["fields"]
+        self.assertEqual([extra["value"] for extra in fields["extras"]], ["커피1포트", "샴페인1병"])
+
 
 if __name__ == "__main__":
     unittest.main()
